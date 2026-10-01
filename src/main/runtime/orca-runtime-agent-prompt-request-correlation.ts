@@ -8,6 +8,7 @@ import type {
 } from './agent-prompt-submission-verification'
 import { verifyAgentPromptSubmission } from './agent-prompt-submission-verification'
 import { AgentPromptRequestCorrelation } from './agent-prompt-request-correlation'
+import { createHash } from 'node:crypto'
 import type { AgentStatusIpcPayload } from '../../shared/agent-status-ipc-payload'
 import {
   isTerminalAgentPromptFenceCurrent,
@@ -47,17 +48,15 @@ export class OrcaRuntimeWithAgentPromptRequestCorrelation extends OrcaRuntimeWit
   getTerminalAgentPromptFence(handle: string): TerminalAgentPromptFence | null {
     const binding = this.getTerminalPromptRequestBinding(handle)
     const activity = this.getAgentPromptActivity(handle, binding.ptyId)
-    const hookRow = this.findHookAgentStatusForHandle(handle)
-    const blocked = hookRow
-      ? hookRow.state === 'blocked' || hookRow.state === 'waiting'
-      : activity.status === 'permission'
-    if (!blocked) {
+    if (activity.status !== 'permission') {
       return null
     }
+    const hookRow = this.findHookAgentStatusForHandle(handle)
     return {
       generation: binding.generation,
       permissionSequence: activity.permissionSequence,
-      blockedSince: hookRow?.stateStartedAt ?? null
+      blockedSince: hookRow?.stateStartedAt ?? null,
+      promptKey: hookRow ? hashHookPromptContent(hookRow) : null
     }
   }
 
@@ -73,6 +72,8 @@ export class OrcaRuntimeWithAgentPromptRequestCorrelation extends OrcaRuntimeWit
       {
         signal: options.signal,
         inputKind: 'driving',
+        // Distinguishes "Enter withheld after the text landed" from a clean pre-write refusal.
+        suffixFailureError: 'agent_prompt_changed_after_text',
         // Checked at write time so a prompt that changed after the phone read it is never answered.
         beforeWrite: () => {
           if (
@@ -85,10 +86,10 @@ export class OrcaRuntimeWithAgentPromptRequestCorrelation extends OrcaRuntimeWit
     )
   }
 
+  /** The fresh, floor-respecting hook row for the terminal, or null. */
   protected findHookAgentStatusForHandle(handle: string): AgentStatusIpcPayload | null {
-    return (
-      (this.getAgentStatusSnapshotFn?.() ?? []).find((row) => row.terminalHandle === handle) ?? null
-    )
+    const { ptyId } = this.getTerminalPromptRequestBinding(handle)
+    return this.getFreshExplicitAgentStatusForPty(handle, ptyId)?.row ?? null
   }
 
   async observeTerminalAgentPrompt(
@@ -115,9 +116,7 @@ export class OrcaRuntimeWithAgentPromptRequestCorrelation extends OrcaRuntimeWit
             ? { permissionSequence: prompt.baselinePermissionSequence }
             : {}),
           ...(prompt.baselineExplicitWorkingStartedAt !== undefined
-            ? {
-                explicitWorkingStartedAt: prompt.baselineExplicitWorkingStartedAt
-              }
+            ? { explicitWorkingStartedAt: prompt.baselineExplicitWorkingStartedAt }
             : {})
         },
         readActivity: () => this.getAgentPromptActivity(handle, binding.ptyId, waitTextCache),
@@ -137,11 +136,7 @@ export class OrcaRuntimeWithAgentPromptRequestCorrelation extends OrcaRuntimeWit
         timeoutMs
       })
       this.forgetAgentPromptRequest(binding.ptyId, binding.generation, prompt.requestId)
-      return {
-        ...prompt,
-        stages: ['input_accepted', 'turn_started'],
-        observation: 'supported'
-      }
+      return { ...prompt, stages: ['input_accepted', 'turn_started'], observation: 'supported' }
     } catch (error) {
       if (error instanceof Error && error.message === 'agent_prompt_stalled') {
         return prompt
@@ -194,4 +189,12 @@ export class OrcaRuntimeWithAgentPromptRequestCorrelation extends OrcaRuntimeWit
   protected clearAgentPromptCorrelationForPty(ptyId: string): void {
     this.agentPromptCorrelation.clearForPty(ptyId)
   }
+}
+
+// Hook blocks keep stateStartedAt across consecutive prompts, so the prompt content tells them apart.
+function hashHookPromptContent(row: AgentStatusIpcPayload): string {
+  return createHash('sha256')
+    .update(`${row.toolName ?? ''}|${row.toolInput ?? ''}|${row.interactivePrompt ?? ''}`)
+    .digest('hex')
+    .slice(0, 16)
 }

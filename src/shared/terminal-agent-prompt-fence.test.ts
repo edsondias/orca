@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { isTerminalAgentPromptFenceCurrent } from './terminal-agent-prompt-fence'
 
-const fence = { generation: 3, permissionSequence: 2, blockedSince: 1000 }
+const fence = { generation: 3, permissionSequence: 2, blockedSince: 1000, promptKey: 'abc' }
 
 describe('isTerminalAgentPromptFenceCurrent', () => {
   it('accepts the same prompt', () => {
@@ -28,5 +28,8 @@ describe('isTerminalAgentPromptFenceCurrent', () => {
         blockedSince: 2000
       })
     ).toBe(false)
+  })
+  it('refuses a different prompt under the same hook block', () => {
+    expect(isTerminalAgentPromptFenceCurrent(fence, { ...fence, promptKey: 'def' })).toBe(false)
   })
 })

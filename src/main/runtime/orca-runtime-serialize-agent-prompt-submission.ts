@@ -1,4 +1,5 @@
 // @ts-nocheck -- mechanically split from OrcaRuntimeService; behavior is covered by AST equivalence and characterization tests.
+import type { AgentStatusIpcPayload } from '../../shared/agent-status-ipc-payload'
 import { selectFreshExplicitAgentStatus } from './runtime-hook-agent-row-selection'
 import { OrcaRuntimeWithControllerKnowsPtyIsLive } from './orca-runtime-controller-knows-pty-is-live'
 import type { RuntimeTerminalAgentStatus } from '../../shared/runtime-types'
@@ -246,6 +247,7 @@ export class OrcaRuntimeWithSerializeAgentPromptSubmission extends OrcaRuntimeWi
     status: NonNullable<RuntimeTerminalAgentStatus['status']>
     updatedAt: number
     stateStartedAt: number
+    row: AgentStatusIpcPayload
   } | null {
     return selectFreshExplicitAgentStatus({
       handle,

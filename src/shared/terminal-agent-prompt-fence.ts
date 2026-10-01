@@ -6,6 +6,8 @@ export type TerminalAgentPromptFence = {
   permissionSequence: number
   /** Hook-reported stateStartedAt of the blocked state; hook blocks never bump permissionSequence. */
   blockedSince: number | null
+  /** Hash of the hook row's prompt content; consecutive hook blocks share blockedSince. */
+  promptKey: string | null
 }
 
 export function isTerminalAgentPromptFenceCurrent(
@@ -16,6 +18,7 @@ export function isTerminalAgentPromptFenceCurrent(
     current !== null &&
     current.generation === expected.generation &&
     current.permissionSequence === expected.permissionSequence &&
-    current.blockedSince === expected.blockedSince
+    current.blockedSince === expected.blockedSince &&
+    current.promptKey === expected.promptKey
   )
 }

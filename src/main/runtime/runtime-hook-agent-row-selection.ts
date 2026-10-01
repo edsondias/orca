@@ -37,8 +37,10 @@ export function selectFreshExplicitAgentStatus(args: {
   status: NonNullable<RuntimeTerminalAgentStatus['status']>
   updatedAt: number
   stateStartedAt: number
+  row: AgentStatusIpcPayload
 } | null {
   const now = Date.now()
+  let bestRow: AgentStatusIpcPayload | null = null
   let bestStatus: NonNullable<RuntimeTerminalAgentStatus['status']> | null = null
   let bestUpdatedAt = -1
   let bestStateStartedAt = -1
@@ -46,9 +48,10 @@ export function selectFreshExplicitAgentStatus(args: {
     state: AgentStatusEntry['state'] | undefined,
     updatedAt: number | null | undefined,
     evidenceObservedAt: number | null | undefined,
-    restoredUnconfirmed = false,
-    providerSessionOnly = false,
-    stateStartedAt?: number | null
+    restoredUnconfirmed: boolean | undefined,
+    providerSessionOnly: boolean | undefined,
+    stateStartedAt: number | null | undefined,
+    sourceRow: AgentStatusIpcPayload
   ): void => {
     if (!state || restoredUnconfirmed || providerSessionOnly || typeof updatedAt !== 'number') {
       return
@@ -59,6 +62,7 @@ export function selectFreshExplicitAgentStatus(args: {
     const status = mapExplicitAgentStateToRuntimeTerminalStatus(state)
     if (updatedAt > bestUpdatedAt || (updatedAt === bestUpdatedAt && status === 'permission')) {
       bestStatus = status
+      bestRow = sourceRow
       bestUpdatedAt = updatedAt
       bestStateStartedAt = typeof stateStartedAt === 'number' ? stateStartedAt : updatedAt
     }
@@ -73,14 +77,16 @@ export function selectFreshExplicitAgentStatus(args: {
       row.evidenceObservedAt,
       row.restoredUnconfirmed,
       row.providerSessionOnly,
-      row.stateStartedAt
+      row.stateStartedAt,
+      row
     )
   }
-  return bestStatus
+  return bestStatus && bestRow
     ? {
         status: bestStatus,
         updatedAt: bestUpdatedAt,
-        stateStartedAt: bestStateStartedAt
+        stateStartedAt: bestStateStartedAt,
+        row: bestRow
       }
     : null
 }
