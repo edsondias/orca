@@ -293,7 +293,7 @@ git commit -m "feat(runtime): guard terminal agent prompt replies with a host-si
 
 **Interfaces:**
 - Consome: `runtime.replyToTerminalAgentPrompt` (Tarefa 1)
-- Produz: método `terminal.replyToAgentPrompt`, params `{ terminal: string; fence: TerminalAgentPromptFence; text: string; enter: boolean }`, resultado `{ delivered: true } | { delivered: false; reason: 'prompt-changed' | 'prompt-changed-after-text' }`
+- Produz: método `terminal.replyToAgentPrompt`, params `{ terminal: string; fence: TerminalAgentPromptFence; text: string; enter: boolean; client?: { id: string; type: 'mobile' } }` (o `client` tem o mesmo schema do `TerminalSend`), resultado `{ delivered: true } | { delivered: false; reason: 'prompt-changed' | 'prompt-changed-after-text' | 'terminal-locked' }`. Aplica a mesma trava por cliente e o mesmo piso de entrada mobile do `terminal.send`, pelo módulo `mobile-terminal-input-admission.ts` (correção pós-revisão).
 - Consome da Tarefa 1 (correção pós-revisão): a guarda tem também `promptKey: string | null`, e o runtime rejeita com `agent_prompt_changed_after_text` quando o texto já foi escrito mas o Enter foi retido. Acrescente um teste que mapeia esse erro para `{ delivered: false, reason: 'prompt-changed-after-text' }`.
 
 - [ ] **Passo 1: escrever o teste do método**
@@ -2128,7 +2128,7 @@ git commit -m "feat(mobile): route car replies through the fenced host method wi
 - Produz:
 
 ```ts
-export type CarBridgeHost = { hostId: string; client: RpcClient }
+export type CarBridgeHost = { hostId: string; client: RpcClient; deviceToken?: string }
 export const CAR_DISCONNECTED_NOTICE_MS = 60_000
 export const CAR_SYSTEM_CONVERSATION_ID = 'orca:system'
 export function createCarSessionBridge(deps: {
@@ -2263,7 +2263,7 @@ import { CAR_COPY } from './car-copy'
 import { createCarConversationStore, type CarNotificationEvent } from './car-conversation-store'
 import { carReplyReceipt, createCarReplyRouter } from './car-reply-router'
 
-export type CarBridgeHost = { hostId: string; client: RpcClient }
+export type CarBridgeHost = { hostId: string; client: RpcClient; deviceToken?: string }
 type LogCode = 'car-session-started' | 'car-session-ended' | 'car-reply-delivered' | 'car-reply-refused'
 
 type Deps = {
@@ -2460,7 +2460,12 @@ export function useCarSessionBridge(hosts: CarBridgeHost[]): void {
           }
           let response: Awaited<ReturnType<typeof carAgentPromptReply.request>>
           try {
-            response = await carAgentPromptReply.request(host.client, params, { failWhenDisconnected: true })
+            // The client lets the host apply the same input lock and mobile floor as terminal.send.
+            response = await carAgentPromptReply.request(
+              host.client,
+              { ...params, ...(host.deviceToken ? { client: { id: host.deviceToken, type: 'mobile' as const } } : {}) },
+              { failWhenDisconnected: true }
+            )
           } catch {
             return 'disconnected'
           }
