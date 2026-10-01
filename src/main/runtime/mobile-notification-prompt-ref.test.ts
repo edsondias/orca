@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { createNotificationStreamFilter } from './rpc/methods/notification-stream-policy'
+import { buildAgentExitedMobileNotification } from './agent-exited-mobile-notification'
 import { RuntimeMobileNotificationController } from './runtime-mobile-notification-controller'
 
 describe('mobile notification prompt reference', () => {
@@ -18,5 +20,38 @@ describe('mobile notification prompt reference', () => {
     })
     expect(seen[0]).toMatchObject({ promptRef })
     expect(controller.getMissedSince(0)[0]).toMatchObject({ promptRef })
+  })
+
+  it('keeps the exit notice from plain subscribers and from the legacy cooldown', () => {
+    const controller = new RuntimeMobileNotificationController()
+    const plain: unknown[] = []
+    const car: unknown[] = []
+    controller.onDispatched((event) => {
+      if (createNotificationStreamFilter(false)(event)) {
+        plain.push(event)
+      }
+      if (createNotificationStreamFilter(true)(event)) {
+        car.push(event)
+      }
+    })
+    controller.dispatch(
+      buildAgentExitedMobileNotification({
+        ptyId: 'p',
+        generation: 1,
+        attribution: { worktreeId: 'wt' },
+        emittedAt: 9_000
+      })
+    )
+    controller.dispatch({
+      type: 'notification',
+      source: 'terminal-bell',
+      title: 'bell',
+      body: '',
+      worktreeId: 'wt',
+      emittedAt: 10_000
+    })
+    expect(car).toHaveLength(2)
+    expect(plain).toHaveLength(1)
+    expect(plain[0]).toMatchObject({ source: 'terminal-bell', legacySocketAllowed: true })
   })
 })

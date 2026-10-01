@@ -104,6 +104,7 @@ export class OrcaRuntimeWithSerializeAgentPromptSubmission extends OrcaRuntimeWi
         this.confirmLegacyPtyAgentExit(ptyId, recoverCompletedHook, verdict === 'unverifiable')
       } else if (verdict === 'exited' && !recoverCompletedHook) {
         this.recordTerminalSideEffectFact(ptyId, { kind: 'agent-exited' })
+        this.announceAgentExitedToMobile(ptyId)
       } else if (verdict === 'live') {
         this.restoreDisprovedAgentExit(ptyId)
       } else {
@@ -210,6 +211,10 @@ export class OrcaRuntimeWithSerializeAgentPromptSubmission extends OrcaRuntimeWi
       if (!keepOnSilence || answered) {
         if (!recoverCompletedHook) {
           this.recordTerminalSideEffectFact(ptyId, { kind: 'agent-exited' })
+          // Silence is not an exit: only a foreground read that named a non-agent process is.
+          if (answered) {
+            this.announceAgentExitedToMobile(ptyId)
+          }
         }
       } else {
         this.ptyTitleTrackersByPtyId.get(ptyId)?.tracker.restoreLastAgentExit()

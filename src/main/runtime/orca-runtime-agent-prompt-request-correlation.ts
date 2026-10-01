@@ -84,9 +84,12 @@ export class OrcaRuntimeWithAgentPromptRequestCorrelation extends OrcaRuntimeWit
         fence,
         ...(permission ? { permission } : {})
       }
-    } catch {
-      // A pane without a live PTY has no prompt to answer.
-      return undefined
+    } catch (error) {
+      // A pane without a writable PTY has no prompt to answer; anything else is a real bug.
+      if (error instanceof Error && error.message === 'terminal_not_writable') {
+        return undefined
+      }
+      throw error
     }
   }
 

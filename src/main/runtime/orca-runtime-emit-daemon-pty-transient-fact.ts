@@ -1,5 +1,6 @@
 // @ts-nocheck -- mechanically split from OrcaRuntimeService; behavior is covered by AST equivalence and characterization tests.
 import { OrcaRuntimeWithScheduleWaitBlockedCheck } from './orca-runtime-schedule-wait-blocked-check'
+import { buildAgentExitedMobileNotification } from './agent-exited-mobile-notification'
 import type { PtyTransientFact } from '../providers/types'
 import type {
   TerminalSideEffectBatch,
@@ -66,9 +67,6 @@ export class OrcaRuntimeWithEmitDaemonPtyTransientFact extends OrcaRuntimeWithSc
   /** Record one derived side-effect fact: batched per chunk while applying
    *  bytes, emitted immediately for between-chunk facts (stale-title timer). */
   protected recordTerminalSideEffectFact(ptyId: string, fact: TerminalSideEffectFact): void {
-    if (fact.kind === 'agent-exited') {
-      this.announceAgentExitedToMobile(ptyId)
-    }
     if (!this.terminalSideEffectConsumerAvailable) {
       return
     }
@@ -80,18 +78,16 @@ export class OrcaRuntimeWithEmitDaemonPtyTransientFact extends OrcaRuntimeWithSc
     this.emitTerminalSideEffectBatch(ptyId, [fact])
   }
 
-  // Only the exited verdict lands here; lost contact is unverifiable and never announced as exit.
+  // Callers invoke this only for a confirmed exit verdict, never for lost contact or silence.
   protected announceAgentExitedToMobile(ptyId: string): void {
-    const attribution = this.resolveTerminalSideEffectAttribution(ptyId)
-    this.mobileNotifications.dispatch({
-      type: 'notification',
-      source: 'agent-exited',
-      title: 'Agent exited',
-      body: '',
-      emittedAt: Date.now(),
-      ...(attribution.worktreeId ? { worktreeId: attribution.worktreeId } : {}),
-      ...(attribution.paneKey ? { notificationId: `agent-exited:${attribution.paneKey}` } : {})
-    })
+    this.mobileNotifications.dispatch(
+      buildAgentExitedMobileNotification({
+        ptyId,
+        generation: this.getPtyLifecycleGeneration(ptyId),
+        attribution: this.resolveTerminalSideEffectAttribution(ptyId),
+        emittedAt: Date.now()
+      })
+    )
   }
 
   protected emitTerminalSideEffectBatch(

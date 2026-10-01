@@ -161,7 +161,7 @@ describe('createNotificationDeliveryService', () => {
     expect(harness.deliverNative).not.toHaveBeenCalled()
   })
 
-  it('attaches the prompt reference the runtime resolves for the pane', () => {
+  it('attaches the prompt reference the runtime resolves for the pane', async () => {
     const promptRef = {
       kind: 'terminal' as const,
       terminalHandle: 't1',
@@ -169,7 +169,7 @@ describe('createNotificationDeliveryService', () => {
     }
     const harness = makeHarness(makeSettings())
     harness.deps.resolvePromptRef = () => promptRef
-    createNotificationDeliveryService(harness.deps).dispatch(
+    await createNotificationDeliveryService(harness.deps).dispatch(
       makeRequest({ paneKey: 'p1', agentState: 'blocked' })
     )
     expect(harness.dispatchMobileNotification).toHaveBeenCalledWith(
@@ -177,14 +177,22 @@ describe('createNotificationDeliveryService', () => {
     )
   })
 
-  it('sends a structured reference when the request names an agent session', () => {
+  it('sends a structured reference when a blocked request names an agent session', async () => {
     const harness = makeHarness(makeSettings())
     harness.deps.resolvePromptRef = () => undefined
-    createNotificationDeliveryService(harness.deps).dispatch(
+    await createNotificationDeliveryService(harness.deps).dispatch(
       makeRequest({ agentSessionId: 's1', agentState: 'blocked' })
     )
     expect(harness.dispatchMobileNotification).toHaveBeenCalledWith(
       expect.objectContaining({ promptRef: { kind: 'structured', sessionId: 's1' } })
     )
+  })
+
+  it('sends no structured reference for a finished session', async () => {
+    const harness = makeHarness(makeSettings())
+    await createNotificationDeliveryService(harness.deps).dispatch(
+      makeRequest({ agentSessionId: 's1', agentState: 'done' })
+    )
+    expect(harness.dispatchMobileNotification.mock.calls[0]?.[0]).not.toHaveProperty('promptRef')
   })
 })

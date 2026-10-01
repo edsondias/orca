@@ -106,9 +106,11 @@ export function createNotificationDeliveryService(
             deps.now()
           )
         ) {
-          const promptRef = request.agentSessionId
-            ? { kind: 'structured' as const, sessionId: request.agentSessionId }
-            : deps.resolvePromptRef?.(request)
+          // Only a blocked session has a prompt a phone could answer.
+          const promptRef =
+            request.agentSessionId && request.agentState === 'blocked'
+              ? { kind: 'structured' as const, sessionId: request.agentSessionId }
+              : deps.resolvePromptRef?.(request)
           deps.dispatchMobileNotification({
             type: 'notification',
             emittedAt: deps.now(),

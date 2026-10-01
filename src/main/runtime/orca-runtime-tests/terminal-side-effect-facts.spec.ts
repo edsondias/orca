@@ -545,6 +545,53 @@ describe('terminal side-effect fact channel', () => {
     }
   )
 
+  describe('agent-exited phone notice', () => {
+    const exitNotices = (runtime: ReturnType<typeof createSideEffectRuntime>['runtime']) =>
+      runtime
+        .getMissedNotificationsSince(0, undefined)
+        .filter((event) => event.type === 'notification' && event.source === 'agent-exited')
+
+    it('announces once, desktop-suppressed, on the exited verdict', async () => {
+      const { runtime, batches } = createSideEffectRuntime(async () => 'exited')
+      syncSinglePty(runtime)
+      runtime.setPtyController({
+        write: () => true,
+        kill: () => true,
+        getForegroundProcess: vi.fn(async () => 'zsh')
+      })
+      runtime.ingestSyntheticTitleFrame('pty-1', ']0;Codex ready')
+      runtime.onPtyData('pty-1', ']0;~/repo', 100)
+      await vi.waitFor(() => expect(exitNotices(runtime)).toHaveLength(1))
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(exitNotices(runtime)).toHaveLength(1)
+      expect(exitNotices(runtime)[0]).toMatchObject({ desktopAllowed: false })
+      expect(batches.flatMap((batch) => batch.facts)).toContainEqual({ kind: 'agent-exited' })
+    })
+
+    it.each([
+      { name: 'live verdict', presence: 'live' as const, foreground: async () => 'zsh' },
+      {
+        name: 'unverifiable verdict with an unanswered foreground read',
+        presence: 'unverifiable' as const,
+        foreground: () => {
+          throw new TypeError('getForegroundProcess is unavailable')
+        }
+      }
+    ])('stays silent for $name', async ({ presence, foreground }) => {
+      const { runtime } = createSideEffectRuntime(async () => presence)
+      syncSinglePty(runtime)
+      runtime.setPtyController({
+        write: () => true,
+        kill: () => true,
+        getForegroundProcess: foreground
+      })
+      runtime.ingestSyntheticTitleFrame('pty-1', ']0;Codex ready')
+      runtime.onPtyData('pty-1', ']0;bichir', 100)
+      await new Promise((resolve) => setTimeout(resolve, 80))
+      expect(exitNotices(runtime)).toHaveLength(0)
+    })
+  })
+
   it('aligns a restored session and pre-response bytes to the provider sequence', async () => {
     const { runtime } = createSideEffectRuntime()
 
