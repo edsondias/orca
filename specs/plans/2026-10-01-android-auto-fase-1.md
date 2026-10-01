@@ -83,7 +83,7 @@
 - Criar: `src/main/runtime/terminal-agent-prompt-reply.test.ts`
 
 **Interfaces:**
-- Produz: `type TerminalAgentPromptFence = { generation: number; permissionSequence: number; blockedSince: number | null }`
+- Produz: `type TerminalAgentPromptFence = { generation: number; permissionSequence: number; blockedSince: number | null; promptKey: string | null }`
 - Produz: `isTerminalAgentPromptFenceCurrent(expected: TerminalAgentPromptFence, current: TerminalAgentPromptFence | null): boolean`
 - Produz no runtime: `getTerminalAgentPromptFence(handle: string): TerminalAgentPromptFence | null`
 - Produz no runtime: `replyToTerminalAgentPrompt(handle: string, expected: TerminalAgentPromptFence, action: { text: string; enter: boolean }, options?: { signal?: AbortSignal }): Promise<void>`, que rejeita com `Error('agent_prompt_changed')` sem escrever.
@@ -95,7 +95,7 @@
 import { describe, expect, it } from 'vitest'
 import { isTerminalAgentPromptFenceCurrent } from './terminal-agent-prompt-fence'
 
-const fence = { generation: 3, permissionSequence: 2, blockedSince: 1000 }
+const fence = { generation: 3, permissionSequence: 2, blockedSince: 1000, promptKey: null }
 
 describe('isTerminalAgentPromptFenceCurrent', () => {
   it('accepts the same prompt', () => {
@@ -111,7 +111,7 @@ describe('isTerminalAgentPromptFenceCurrent', () => {
     expect(isTerminalAgentPromptFenceCurrent(fence, { ...fence, permissionSequence: 3 })).toBe(false)
   })
   it('refuses a newer hook-reported block', () => {
-    expect(isTerminalAgentPromptFenceCurrent(fence, { ...fence, blockedSince: 2000 })).toBe(false)
+    expect(isTerminalAgentPromptFenceCurrent(fence, { ...fence, blockedSince: 2000, promptKey: null })).toBe(false)
   })
 })
 ```
@@ -293,7 +293,8 @@ git commit -m "feat(runtime): guard terminal agent prompt replies with a host-si
 
 **Interfaces:**
 - Consome: `runtime.replyToTerminalAgentPrompt` (Tarefa 1)
-- Produz: método `terminal.replyToAgentPrompt`, params `{ terminal: string; fence: TerminalAgentPromptFence; text: string; enter: boolean }`, resultado `{ delivered: true } | { delivered: false; reason: 'prompt-changed' }`
+- Produz: método `terminal.replyToAgentPrompt`, params `{ terminal: string; fence: TerminalAgentPromptFence; text: string; enter: boolean }`, resultado `{ delivered: true } | { delivered: false; reason: 'prompt-changed' | 'prompt-changed-after-text' }`
+- Consome da Tarefa 1 (correção pós-revisão): a guarda tem também `promptKey: string | null`, e o runtime rejeita com `agent_prompt_changed_after_text` quando o texto já foi escrito mas o Enter foi retido. Acrescente um teste que mapeia esse erro para `{ delivered: false, reason: 'prompt-changed-after-text' }`.
 
 - [ ] **Passo 1: escrever o teste do método**
 
@@ -304,7 +305,7 @@ import type { OrcaRuntimeService } from '../orca-runtime'
 import { RpcDispatcher } from './dispatcher'
 import { TERMINAL_METHODS } from './methods/terminal'
 
-const fence = { generation: 1, permissionSequence: 2, blockedSince: null }
+const fence = { generation: 1, permissionSequence: 2, blockedSince: null, promptKey: null }
 
 function dispatcherWith(reply: ReturnType<typeof vi.fn>) {
   // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the method under test only touches these two members.
@@ -356,7 +357,8 @@ export const TerminalAgentPromptFenceParams = z
   .object({
     generation: z.number().int().nonnegative(),
     permissionSequence: z.number().int().nonnegative(),
-    blockedSince: z.number().int().nonnegative().nullable()
+    blockedSince: z.number().int().nonnegative().nullable(),
+    promptKey: z.string().max(64).nullable()
   })
   .strict()
 
@@ -392,6 +394,10 @@ export const TERMINAL_REPLY_TO_AGENT_PROMPT_METHODS = [
       } catch (error) {
         if (error instanceof Error && error.message === 'agent_prompt_changed') {
           return { delivered: false as const, reason: 'prompt-changed' as const }
+        }
+        // The text reached the agent's input but the Enter was withheld because the prompt moved on.
+        if (error instanceof Error && error.message === 'agent_prompt_changed_after_text') {
+          return { delivered: false as const, reason: 'prompt-changed-after-text' as const }
         }
         throw error
       }
@@ -466,7 +472,7 @@ it('attaches the prompt reference the runtime resolves for the pane', async () =
   const promptRef = {
     kind: 'terminal' as const,
     terminalHandle: 't1',
-    fence: { generation: 1, permissionSequence: 0, blockedSince: 5 }
+    fence: { generation: 1, permissionSequence: 0, blockedSince: 5, promptKey: null }
   }
   const { service, deps } = createHarness({ resolvePromptRef: () => promptRef })
   await service.dispatch({ source: 'agent-task-complete', worktreeId: 'wt', paneKey: 'p1', agentState: 'blocked' })
@@ -1679,7 +1685,7 @@ export type CarNotificationEvent = {
   emittedAt?: number
   agentState?: string
   promptRef?:
-    | { kind: 'terminal'; terminalHandle: string; fence: { generation: number; permissionSequence: number; blockedSince: number | null }; permission?: { interactivePrompt?: string; lastAssistantMessage?: string } }
+    | { kind: 'terminal'; terminalHandle: string; fence: { generation: number; permissionSequence: number; blockedSince: number | null; promptKey: string | null }; permission?: { interactivePrompt?: string; lastAssistantMessage?: string } }
     | { kind: 'structured'; sessionId: string }
 }
 ```
@@ -1690,7 +1696,7 @@ export type CarNotificationEvent = {
 export type CarPendingPrompt = {
   hostId: string
   terminalHandle: string
-  fence: { generation: number; permissionSequence: number; blockedSince: number | null }
+  fence: { generation: number; permissionSequence: number; blockedSince: number | null; promptKey: string | null }
   notificationSeq: number
   agentState: string
   permission?: { interactivePrompt?: string; lastAssistantMessage?: string }
@@ -1713,7 +1719,7 @@ export function createCarConversationStore(now: () => number): {
 import { describe, expect, it } from 'vitest'
 import { createCarConversationStore } from './car-conversation-store'
 
-const fence = { generation: 1, permissionSequence: 0, blockedSince: 10 }
+const fence = { generation: 1, permissionSequence: 0, blockedSince: 10, promptKey: null }
 const blocked = {
   type: 'notification' as const, source: 'agent-task-complete', title: 'Claude · feat-login', body: 'Allow command: pnpm test?',
   notificationSeq: 7, agentState: 'blocked', emittedAt: 100,
@@ -1791,7 +1797,7 @@ export type CarNotificationEvent = {
     | {
         kind: 'terminal'
         terminalHandle: string
-        fence: { generation: number; permissionSequence: number; blockedSince: number | null }
+        fence: { generation: number; permissionSequence: number; blockedSince: number | null; promptKey: string | null }
         permission?: { interactivePrompt?: string; lastAssistantMessage?: string }
       }
     | { kind: 'structured'; sessionId: string }
@@ -1800,7 +1806,7 @@ export type CarNotificationEvent = {
 export type CarPendingPrompt = {
   hostId: string
   terminalHandle: string
-  fence: { generation: number; permissionSequence: number; blockedSince: number | null }
+  fence: { generation: number; permissionSequence: number; blockedSince: number | null; promptKey: string | null }
   notificationSeq: number
   agentState: string
   permission?: { interactivePrompt?: string; lastAssistantMessage?: string }
@@ -1933,7 +1939,7 @@ import { carReplyReceipt, createCarReplyRouter } from './car-reply-router'
 
 const prompt = {
   hostId: 'h1', terminalHandle: 't1', notificationSeq: 7, agentState: 'blocked',
-  fence: { generation: 1, permissionSequence: 0, blockedSince: 10 },
+  fence: { generation: 1, permissionSequence: 0, blockedSince: 10, promptKey: null },
   permission: { lastAssistantMessage: 'Do you want to proceed?\n1. Yes\n2. No' }
 }
 
@@ -2170,7 +2176,7 @@ function harness(sendResult = 'delivered') {
 const blocked = {
   type: 'notification', source: 'agent-task-complete', title: 'Claude · feat-login', body: 'Allow command?',
   notificationSeq: 7, agentState: 'blocked',
-  promptRef: { kind: 'terminal', terminalHandle: 't1', fence: { generation: 1, permissionSequence: 0, blockedSince: 10 },
+  promptRef: { kind: 'terminal', terminalHandle: 't1', fence: { generation: 1, permissionSequence: 0, blockedSince: 10, promptKey: null },
     permission: { lastAssistantMessage: 'Do you want to proceed?\n1. Yes\n2. No' } }
 }
 
@@ -2521,7 +2527,7 @@ type Respond = (message: unknown) => void
 type Success = (id: string, result: unknown, streaming?: boolean) => unknown
 type Failure = (id: string, code: string, message: string) => unknown
 
-const FENCE = { generation: 1, permissionSequence: 1, blockedSince: 1_000 }
+const FENCE = { generation: 1, permissionSequence: 1, blockedSince: 1_000, promptKey: null }
 let promptAnswered = false
 
 function blockedEvent(seq: number) {
