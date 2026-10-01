@@ -160,4 +160,31 @@ describe('createNotificationDeliveryService', () => {
     ).resolves.toEqual({ delivered: false, reason: 'blocked-by-system' })
     expect(harness.deliverNative).not.toHaveBeenCalled()
   })
+
+  it('attaches the prompt reference the runtime resolves for the pane', () => {
+    const promptRef = {
+      kind: 'terminal' as const,
+      terminalHandle: 't1',
+      fence: { generation: 1, permissionSequence: 0, blockedSince: 5, promptKey: null }
+    }
+    const harness = makeHarness(makeSettings())
+    harness.deps.resolvePromptRef = () => promptRef
+    createNotificationDeliveryService(harness.deps).dispatch(
+      makeRequest({ paneKey: 'p1', agentState: 'blocked' })
+    )
+    expect(harness.dispatchMobileNotification).toHaveBeenCalledWith(
+      expect.objectContaining({ promptRef })
+    )
+  })
+
+  it('sends a structured reference when the request names an agent session', () => {
+    const harness = makeHarness(makeSettings())
+    harness.deps.resolvePromptRef = () => undefined
+    createNotificationDeliveryService(harness.deps).dispatch(
+      makeRequest({ agentSessionId: 's1', agentState: 'blocked' })
+    )
+    expect(harness.dispatchMobileNotification).toHaveBeenCalledWith(
+      expect.objectContaining({ promptRef: { kind: 'structured', sessionId: 's1' } })
+    )
+  })
 })

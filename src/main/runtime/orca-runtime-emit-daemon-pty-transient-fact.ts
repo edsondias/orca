@@ -66,6 +66,9 @@ export class OrcaRuntimeWithEmitDaemonPtyTransientFact extends OrcaRuntimeWithSc
   /** Record one derived side-effect fact: batched per chunk while applying
    *  bytes, emitted immediately for between-chunk facts (stale-title timer). */
   protected recordTerminalSideEffectFact(ptyId: string, fact: TerminalSideEffectFact): void {
+    if (fact.kind === 'agent-exited') {
+      this.announceAgentExitedToMobile(ptyId)
+    }
     if (!this.terminalSideEffectConsumerAvailable) {
       return
     }
@@ -75,6 +78,20 @@ export class OrcaRuntimeWithEmitDaemonPtyTransientFact extends OrcaRuntimeWithSc
       return
     }
     this.emitTerminalSideEffectBatch(ptyId, [fact])
+  }
+
+  // Only the exited verdict lands here; lost contact is unverifiable and never announced as exit.
+  protected announceAgentExitedToMobile(ptyId: string): void {
+    const attribution = this.resolveTerminalSideEffectAttribution(ptyId)
+    this.mobileNotifications.dispatch({
+      type: 'notification',
+      source: 'agent-exited',
+      title: 'Agent exited',
+      body: '',
+      emittedAt: Date.now(),
+      ...(attribution.worktreeId ? { worktreeId: attribution.worktreeId } : {}),
+      ...(attribution.paneKey ? { notificationId: `agent-exited:${attribution.paneKey}` } : {})
+    })
   }
 
   protected emitTerminalSideEffectBatch(

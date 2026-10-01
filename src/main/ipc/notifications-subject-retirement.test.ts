@@ -46,8 +46,12 @@ function register(options: { suppressWhenFocused: boolean }): {
         }
       })
     } as never,
-    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: dispatch and dismiss call only these two runtime methods.
-    { dispatchMobileNotification, dismissMobileNotification } as never
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: dispatch and dismiss call only these runtime methods.
+    {
+      dispatchMobileNotification,
+      dismissMobileNotification,
+      resolveMobileNotificationPromptRef: () => undefined
+    } as never
   )
   return { dispatchMobileNotification, dismissMobileNotification }
 }

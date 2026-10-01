@@ -1,5 +1,6 @@
 import { reserveNotificationCooldown } from '../../shared/notification-burst-cooldown'
 import type { AgentStatusState } from '../../shared/agent-status-types'
+import type { MobileNotificationPromptRef } from '../../shared/mobile-notification-prompt-ref'
 import type {
   MobilePushTestResult,
   MobilePushRegisterInput,
@@ -19,7 +20,7 @@ export type MobileNotificationDispatchEvent = {
   desktopAllowed?: boolean
   desktopAway?: boolean
   emittedAt?: number
-  source: 'agent-task-complete' | 'terminal-bell' | 'test' | 'plugin'
+  source: 'agent-task-complete' | 'terminal-bell' | 'test' | 'plugin' | 'agent-exited'
   title: string
   body: string
   worktreeId?: string
@@ -29,6 +30,8 @@ export type MobileNotificationDispatchEvent = {
   // Why: background push must tell "needs input" from "finished" without re-deriving
   // it from the title. Optional and additive — old clients ignore it.
   agentState?: AgentStatusState
+  // Optional and additive: old phones ignore it.
+  promptRef?: MobileNotificationPromptRef
 }
 
 export type MobileNotificationDismissEvent = {

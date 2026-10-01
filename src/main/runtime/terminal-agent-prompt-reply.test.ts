@@ -174,4 +174,22 @@ describe('replyToTerminalAgentPrompt', () => {
       expect(runtime.getTerminalAgentPromptFence(handle)).toBeNull()
     })
   })
+
+  it('announces a confirmed agent exit to phones as agent-exited', async () => {
+    const { runtime } = await blockedRuntime(() => undefined)
+    runtime.ingestSyntheticTitleFrame('pty-prompt', ']0;Codex ready')
+    runtime.onPtyData('pty-prompt', ']0;⠋ bichir', 100)
+    runtime.ingestSyntheticTitleFrame('pty-prompt', ']0;Codex ready')
+    runtime.setPtyController({
+      write: () => true,
+      kill: () => true,
+      getForegroundProcess: async () => 'zsh'
+    })
+    runtime.onPtyData('pty-prompt', ']0;bichir', 101)
+    await vi.waitFor(() =>
+      expect(runtime.getMissedNotificationsSince(0, undefined)).toContainEqual(
+        expect.objectContaining({ source: 'agent-exited', title: 'Agent exited' })
+      )
+    )
+  })
 })

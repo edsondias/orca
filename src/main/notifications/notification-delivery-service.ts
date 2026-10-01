@@ -11,6 +11,7 @@ import type {
   NotificationDispatchResult,
   NotificationSettings
 } from '../../shared/notification-settings-types'
+import type { MobileNotificationPromptRef } from '../../shared/mobile-notification-prompt-ref'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { buildNotificationOptions } from '../ipc/notification-options'
 import { reserveNotificationCooldown } from '../ipc/notification-burst-cooldown'
@@ -33,6 +34,10 @@ export type NotificationDeliveryDependencies = {
     options: ReturnType<typeof buildNotificationOptions>,
     settings: NotificationSettings
   ) => NotificationDispatchResult | Promise<NotificationDispatchResult>
+  /** Resolves which pending prompt a phone reply would answer; undefined when none is fenceable. */
+  resolvePromptRef?: (
+    request: NotificationDispatchRequest
+  ) => MobileNotificationPromptRef | undefined
   platform: NodeJS.Platform
   now: () => number
   /** Told once per path that actually announced the request: a desktop banner shown, or a mobile alert sent. */
@@ -101,6 +106,9 @@ export function createNotificationDeliveryService(
             deps.now()
           )
         ) {
+          const promptRef = request.agentSessionId
+            ? { kind: 'structured' as const, sessionId: request.agentSessionId }
+            : deps.resolvePromptRef?.(request)
           deps.dispatchMobileNotification({
             type: 'notification',
             emittedAt: deps.now(),
@@ -112,7 +120,8 @@ export function createNotificationDeliveryService(
             ...(request.notificationId ? { notificationId: request.notificationId } : {}),
             // Why: background push needs the agent's real state to pick "needs input"
             // vs "finished" — and to stay silent while the agent is still working.
-            ...(request.agentState ? { agentState: request.agentState } : {})
+            ...(request.agentState ? { agentState: request.agentState } : {}),
+            ...(promptRef ? { promptRef } : {})
           })
           deps.recordAnnounced?.(request)
         }

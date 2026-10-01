@@ -185,4 +185,15 @@ describe('PushDispatcher', () => {
     expect(() => dispatcher.enqueue(notification())).not.toThrow()
     warn.mockRestore()
   })
+
+  it('never pushes agent-exited, which only rides the paired socket', async () => {
+    const harness = createHarness({
+      devices: [{ deviceId: 'a', pushRegistration: registration({ registrationId: 'reg-a' }) }]
+    })
+    harness.dispatcher.enqueue(
+      notification({ source: 'agent-exited', title: 'Agent exited', body: '' })
+    )
+    await flush()
+    expect(harness.sends).toHaveLength(0)
+  })
 })

@@ -9,6 +9,7 @@ import type {
 import { verifyAgentPromptSubmission } from './agent-prompt-submission-verification'
 import { AgentPromptRequestCorrelation } from './agent-prompt-request-correlation'
 import { createHash } from 'node:crypto'
+import type { MobileNotificationPromptRef } from '../../shared/mobile-notification-prompt-ref'
 import type { AgentStatusIpcPayload } from '../../shared/agent-status-ipc-payload'
 import {
   isTerminalAgentPromptFenceCurrent,
@@ -21,6 +22,7 @@ export class OrcaRuntimeWithAgentPromptRequestCorrelation extends OrcaRuntimeWit
   declare protected getLivePtyForHandle: (
     handle: string
   ) => { record: TerminalHandleRecord; pty: RuntimePtyWorktreeRecord } | null
+  declare protected getTerminalHandleForPaneKey: (paneKey: string) => string | null
   declare protected getLiveLeafForHandle: (handle: string) => {
     record: TerminalHandleRecord
     leaf: RuntimeLeafRecord
@@ -57,6 +59,34 @@ export class OrcaRuntimeWithAgentPromptRequestCorrelation extends OrcaRuntimeWit
       permissionSequence: activity.permissionSequence,
       blockedSince: hookRow?.stateStartedAt ?? null,
       promptKey: hookRow ? hashHookPromptContent(hookRow) : null
+    }
+  }
+
+  resolveMobileNotificationPromptRef(paneKey: string): MobileNotificationPromptRef | undefined {
+    try {
+      const handle = this.getTerminalHandleForPaneKey(paneKey)
+      const fence = handle ? this.getTerminalAgentPromptFence(handle) : null
+      if (!handle || !fence) {
+        return undefined
+      }
+      const row = this.findHookAgentStatusForHandle(handle)
+      const permission = row
+        ? {
+            ...(row.interactivePrompt ? { interactivePrompt: row.interactivePrompt } : {}),
+            ...(row.lastAssistantMessage
+              ? { lastAssistantMessage: row.lastAssistantMessage.slice(0, 4000) }
+              : {})
+          }
+        : undefined
+      return {
+        kind: 'terminal',
+        terminalHandle: handle,
+        fence,
+        ...(permission ? { permission } : {})
+      }
+    } catch {
+      // A pane without a live PTY has no prompt to answer.
+      return undefined
     }
   }
 

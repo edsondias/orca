@@ -102,6 +102,7 @@ export function dispatchStructuredTurnCompletionAttention(
           ...(notificationId ? { notificationId } : {}),
           worktreeId: request.workspaceId,
           paneKey: request.subjectKey ?? undefined,
+          agentSessionId: completion.sessionId,
           ...getNotificationWorkspaceLabels(state, request.workspaceId, tab.label),
           terminalTitle: tab.label,
           isActiveWorktree: request.workspaceIsActive,
