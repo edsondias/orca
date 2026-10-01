@@ -132,6 +132,21 @@ export const TerminalSend = TerminalHandle.extend({
   claimViewport: z.literal(true).optional()
 })
 
+export const TerminalAgentPromptFenceParams = z
+  .object({
+    generation: z.number().int().nonnegative(),
+    permissionSequence: z.number().int().nonnegative(),
+    blockedSince: z.number().int().nonnegative().nullable(),
+    promptKey: z.string().max(64).nullable()
+  })
+  .strict()
+
+export const TerminalReplyToAgentPrompt = TerminalHandle.extend({
+  fence: TerminalAgentPromptFenceParams,
+  text: z.string().min(1).max(500),
+  enter: z.boolean()
+})
+
 export const TerminalViewport = z.object({
   cols: z.number().int().min(1).max(1000),
   rows: z.number().int().min(1).max(500)

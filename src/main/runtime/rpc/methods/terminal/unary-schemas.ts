@@ -10,6 +10,7 @@ export {
   TerminalRead,
   TerminalRecoverPane,
   TerminalRename,
+  TerminalReplyToAgentPrompt,
   TerminalResolveActive,
   TerminalResolvePane,
   TerminalSend,

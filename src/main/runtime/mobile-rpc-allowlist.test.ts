@@ -109,7 +109,16 @@ function mobileRpcAllowlist(): Set<string> {
   if (!allowlist) {
     throw new Error('MOBILE_RPC_METHOD_ALLOWLIST not found')
   }
-  return new Set([...allowlist[1]!.matchAll(/'([^']+)'/g)].map((match) => match[1]!))
+  // Why: the terminal group lives in a sibling file to keep the allowlist under the max-lines cap.
+  const terminalSource = readFileSync(
+    join(process.cwd(), 'src/main/runtime/runtime-rpc/runtime-rpc-mobile-terminal-methods.ts'),
+    'utf8'
+  )
+  return new Set(
+    [...allowlist[1]!.matchAll(/'([^']+)'/g), ...terminalSource.matchAll(/'([^']+)'/g)].map(
+      (match) => match[1]!
+    )
+  )
 }
 
 function registeredRuntimeMethods(): Set<string> {
