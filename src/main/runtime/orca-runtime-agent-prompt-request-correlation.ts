@@ -64,13 +64,19 @@ export class OrcaRuntimeWithAgentPromptRequestCorrelation extends OrcaRuntimeWit
     handle: string,
     expected: TerminalAgentPromptFence,
     action: { text: string; enter: boolean },
-    options: { signal?: AbortSignal } = {}
+    options: {
+      signal?: AbortSignal
+      reserveWrite?: (ptyId: string) => void
+      afterWrite?: (ptyId: string) => void | Promise<void>
+    } = {}
   ): Promise<void> {
     await this.sendTerminal(
       handle,
       { text: action.text, enter: action.enter },
       {
         signal: options.signal,
+        reserveWrite: options.reserveWrite,
+        afterWrite: options.afterWrite,
         inputKind: 'driving',
         // Distinguishes "Enter withheld after the text landed" from a clean pre-write refusal.
         suffixFailureError: 'agent_prompt_changed_after_text',

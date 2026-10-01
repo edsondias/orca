@@ -6,13 +6,12 @@ import { TerminalSend } from './unary-schemas'
 import {
   assertTerminalSendExactPtyBinding,
   assertTerminalSendTextWithinLimit,
-  commitMobileInputFloorClaim,
   getTerminalSendGuardRefusedReason,
   isTerminalInputLockedForClient,
   isTerminalSendGuardNotWritable,
-  resolveMobileFloorClientId,
-  type MobileInputFloorClaimHolder
+  resolveMobileFloorClientId
 } from './terminal-input-delivery'
+import { createMobileInputFloorHooks } from './mobile-terminal-input-admission'
 import { updateViewportForClient } from './terminal-viewport-update'
 import {
   ensureUnsupportedTerminalPromptReceipt,
@@ -180,7 +179,10 @@ export const TERMINAL_SEND_METHODS = [
         }
       }
       const mobileFloorClientId = resolveMobileFloorClientId(driver, params.client)
-      const mobileFloorClaim: MobileInputFloorClaimHolder = { current: null }
+      const mobileFloor = createMobileInputFloorHooks(
+        runtime,
+        params.inputKind !== 'query-reply' && leaf?.ptyId ? mobileFloorClientId : null
+      )
       const beforeWrite =
         orchestrationMutation && params.agentPrompt === true
           ? async (ptyId?: string): Promise<void> => {
@@ -195,16 +197,6 @@ export const TERMINAL_SEND_METHODS = [
         params.interrupt !== true &&
         params.client?.type === 'desktop' &&
         (await runtime.isTerminalRunningSettledPromptAgent(params.terminal))
-      const reserveWrite =
-        params.inputKind !== 'query-reply' && leaf?.ptyId && mobileFloorClientId
-          ? (ptyId: string): void => {
-              const claim = runtime.beginMobileInputFloor(ptyId, mobileFloorClientId)
-              if (!claim) {
-                throw new Error('mobile_input_floor_unavailable')
-              }
-              mobileFloorClaim.current = claim
-            }
-          : undefined
       let result
       let acceptedPromptCheckpoint: unknown
       try {
@@ -237,14 +229,11 @@ export const TERMINAL_SEND_METHODS = [
                 signal,
                 // Why: a wire write carries no provenance beyond a client's own query reply.
                 inputKind: params.inputKind === 'query-reply' ? 'query-reply' : 'driving',
-                ...(reserveWrite ? { reserveWrite } : {}),
-                ...(params.inputKind !== 'query-reply' && mobileFloorClientId
-                  ? { afterWrite: () => commitMobileInputFloorClaim(mobileFloorClaim) }
-                  : {})
+                ...mobileFloor.hooks
               }
             )
       } catch (error) {
-        mobileFloorClaim.current?.rollback()
+        mobileFloor.rollback()
         if (acceptedPromptCheckpoint) {
           return acceptedPromptCheckpoint
         }
@@ -271,7 +260,7 @@ export const TERMINAL_SEND_METHODS = [
         throw error
       }
       if (result.accepted !== true) {
-        mobileFloorClaim.current?.rollback()
+        mobileFloor.rollback()
       }
       if (
         result.accepted === true &&

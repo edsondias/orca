@@ -5,11 +5,14 @@ import { TERMINAL_METHODS } from './methods/terminal'
 
 const fence = { generation: 1, permissionSequence: 2, blockedSince: null, promptKey: null }
 
-function dispatcherWith(reply: ReturnType<typeof vi.fn>) {
-  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the method under test only touches these two members.
+function dispatcherWith(reply: ReturnType<typeof vi.fn>, extra: Record<string, unknown> = {}) {
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the method under test only touches these members.
   const runtime = {
     getRuntimeId: () => 'test-runtime',
-    replyToTerminalAgentPrompt: reply
+    replyToTerminalAgentPrompt: reply,
+    resolveLiveLeafForHandle: () => ({ ptyId: 'pty-1' }),
+    getDriver: () => ({ kind: 'idle' }),
+    ...extra
   } as unknown as OrcaRuntimeService
   return new RpcDispatcher({ runtime, methods: TERMINAL_METHODS })
 }
@@ -63,5 +66,82 @@ describe('terminal.replyToAgentPrompt', () => {
       params: { terminal: 't1', fence, text: 'x'.repeat(501), enter: true }
     })
     expect(response.ok).toBe(false)
+  })
+
+  it('refuses without writing when another client holds the terminal', async () => {
+    const reply = vi.fn()
+    const response = await dispatcherWith(reply, {
+      getDriver: () => ({ kind: 'mobile', clientId: 'phone' })
+    }).dispatch({
+      id: 'r5',
+      authToken: 'tok',
+      method: 'terminal.replyToAgentPrompt',
+      params: {
+        terminal: 't1',
+        fence,
+        text: '1',
+        enter: true,
+        client: { id: 'd1', type: 'desktop' }
+      }
+    })
+    expect(response).toMatchObject({
+      ok: true,
+      result: { delivered: false, reason: 'terminal-locked' }
+    })
+    expect(reply).not.toHaveBeenCalled()
+  })
+
+  it('claims and commits the mobile input floor on success', async () => {
+    const commit = vi.fn().mockResolvedValue(undefined)
+    const rollback = vi.fn()
+    const begin = vi.fn().mockReturnValue({ commit, rollback })
+    const reply = vi.fn(async (_h, _f, _a, options) => {
+      options.reserveWrite('pty-1')
+      await options.afterWrite('pty-1')
+    })
+    const response = await dispatcherWith(reply, { beginMobileInputFloor: begin }).dispatch({
+      id: 'r6',
+      authToken: 'tok',
+      method: 'terminal.replyToAgentPrompt',
+      params: {
+        terminal: 't1',
+        fence,
+        text: '1',
+        enter: false,
+        client: { id: 'phone', type: 'mobile' }
+      }
+    })
+    expect(response).toMatchObject({ ok: true, result: { delivered: true } })
+    expect(begin).toHaveBeenCalledWith('pty-1', 'phone')
+    expect(commit).toHaveBeenCalledTimes(1)
+    expect(rollback).not.toHaveBeenCalled()
+  })
+
+  it('rolls the floor back when the fence refuses the write', async () => {
+    const commit = vi.fn()
+    const rollback = vi.fn()
+    const begin = vi.fn().mockReturnValue({ commit, rollback })
+    const reply = vi.fn(async (_h, _f, _a, options) => {
+      options.reserveWrite('pty-1')
+      throw new Error('agent_prompt_changed')
+    })
+    const response = await dispatcherWith(reply, { beginMobileInputFloor: begin }).dispatch({
+      id: 'r7',
+      authToken: 'tok',
+      method: 'terminal.replyToAgentPrompt',
+      params: {
+        terminal: 't1',
+        fence,
+        text: '1',
+        enter: false,
+        client: { id: 'phone', type: 'mobile' }
+      }
+    })
+    expect(response).toMatchObject({
+      ok: true,
+      result: { delivered: false, reason: 'prompt-changed' }
+    })
+    expect(commit).not.toHaveBeenCalled()
+    expect(rollback).toHaveBeenCalledTimes(1)
   })
 })

@@ -144,7 +144,9 @@ export const TerminalAgentPromptFenceParams = z
 export const TerminalReplyToAgentPrompt = TerminalHandle.extend({
   fence: TerminalAgentPromptFenceParams,
   text: z.string().min(1).max(500),
-  enter: z.boolean()
+  enter: z.boolean(),
+  // Same shape as TerminalSend so the lock and mobile input floor behave identically.
+  client: TerminalSend.shape.client
 })
 
 export const TerminalViewport = z.object({
