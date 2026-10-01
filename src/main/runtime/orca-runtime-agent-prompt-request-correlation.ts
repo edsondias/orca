@@ -8,6 +8,11 @@ import type {
 } from './agent-prompt-submission-verification'
 import { verifyAgentPromptSubmission } from './agent-prompt-submission-verification'
 import { AgentPromptRequestCorrelation } from './agent-prompt-request-correlation'
+import type { AgentStatusIpcPayload } from '../../shared/agent-status-ipc-payload'
+import {
+  isTerminalAgentPromptFenceCurrent,
+  type TerminalAgentPromptFence
+} from '../../shared/terminal-agent-prompt-fence'
 
 export class OrcaRuntimeWithAgentPromptRequestCorrelation extends OrcaRuntimeWithSerializeAgentPromptSubmission {
   private readonly agentPromptCorrelation = new AgentPromptRequestCorrelation()
@@ -39,6 +44,53 @@ export class OrcaRuntimeWithAgentPromptRequestCorrelation extends OrcaRuntimeWit
     }
   }
 
+  getTerminalAgentPromptFence(handle: string): TerminalAgentPromptFence | null {
+    const binding = this.getTerminalPromptRequestBinding(handle)
+    const activity = this.getAgentPromptActivity(handle, binding.ptyId)
+    const hookRow = this.findHookAgentStatusForHandle(handle)
+    const blocked = hookRow
+      ? hookRow.state === 'blocked' || hookRow.state === 'waiting'
+      : activity.status === 'permission'
+    if (!blocked) {
+      return null
+    }
+    return {
+      generation: binding.generation,
+      permissionSequence: activity.permissionSequence,
+      blockedSince: hookRow?.stateStartedAt ?? null
+    }
+  }
+
+  async replyToTerminalAgentPrompt(
+    handle: string,
+    expected: TerminalAgentPromptFence,
+    action: { text: string; enter: boolean },
+    options: { signal?: AbortSignal } = {}
+  ): Promise<void> {
+    await this.sendTerminal(
+      handle,
+      { text: action.text, enter: action.enter },
+      {
+        signal: options.signal,
+        inputKind: 'driving',
+        // Checked at write time so a prompt that changed after the phone read it is never answered.
+        beforeWrite: () => {
+          if (
+            !isTerminalAgentPromptFenceCurrent(expected, this.getTerminalAgentPromptFence(handle))
+          ) {
+            throw new Error('agent_prompt_changed')
+          }
+        }
+      }
+    )
+  }
+
+  protected findHookAgentStatusForHandle(handle: string): AgentStatusIpcPayload | null {
+    return (
+      (this.getAgentStatusSnapshotFn?.() ?? []).find((row) => row.terminalHandle === handle) ?? null
+    )
+  }
+
   async observeTerminalAgentPrompt(
     handle: string,
     prompt: RuntimeTerminalPromptDelivery,
@@ -63,7 +115,9 @@ export class OrcaRuntimeWithAgentPromptRequestCorrelation extends OrcaRuntimeWit
             ? { permissionSequence: prompt.baselinePermissionSequence }
             : {}),
           ...(prompt.baselineExplicitWorkingStartedAt !== undefined
-            ? { explicitWorkingStartedAt: prompt.baselineExplicitWorkingStartedAt }
+            ? {
+                explicitWorkingStartedAt: prompt.baselineExplicitWorkingStartedAt
+              }
             : {})
         },
         readActivity: () => this.getAgentPromptActivity(handle, binding.ptyId, waitTextCache),
@@ -83,7 +137,11 @@ export class OrcaRuntimeWithAgentPromptRequestCorrelation extends OrcaRuntimeWit
         timeoutMs
       })
       this.forgetAgentPromptRequest(binding.ptyId, binding.generation, prompt.requestId)
-      return { ...prompt, stages: ['input_accepted', 'turn_started'], observation: 'supported' }
+      return {
+        ...prompt,
+        stages: ['input_accepted', 'turn_started'],
+        observation: 'supported'
+      }
     } catch (error) {
       if (error instanceof Error && error.message === 'agent_prompt_stalled') {
         return prompt
