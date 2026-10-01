@@ -195,4 +195,20 @@ describe('createNotificationDeliveryService', () => {
     )
     expect(harness.dispatchMobileNotification.mock.calls[0]?.[0]).not.toHaveProperty('promptRef')
   })
+
+  it('still announces on mobile and desktop when the prompt reference lookup throws', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const harness = makeHarness(makeSettings())
+    harness.deps.resolvePromptRef = () => {
+      throw new Error('runtime_unavailable')
+    }
+    const result = await createNotificationDeliveryService(harness.deps).dispatch(
+      makeRequest({ paneKey: 'p1', agentState: 'blocked' })
+    )
+    expect(result).toEqual({ delivered: true })
+    expect(harness.deliverNative).toHaveBeenCalled()
+    expect(harness.dispatchMobileNotification.mock.calls[0]?.[0]).not.toHaveProperty('promptRef')
+    expect(warn).toHaveBeenCalledTimes(1)
+    warn.mockRestore()
+  })
 })

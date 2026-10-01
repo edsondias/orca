@@ -211,8 +211,8 @@ export class OrcaRuntimeWithSerializeAgentPromptSubmission extends OrcaRuntimeWi
       if (!keepOnSilence || answered) {
         if (!recoverCompletedHook) {
           this.recordTerminalSideEffectFact(ptyId, { kind: 'agent-exited' })
-          // Silence is not an exit: only a foreground read that named a non-agent process is.
-          if (answered) {
+          // Only with no presence verdict: a remote read of a non-agent foreground can still hide a live agent.
+          if (answered && !keepOnSilence) {
             this.announceAgentExitedToMobile(ptyId)
           }
         }

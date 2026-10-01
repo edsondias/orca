@@ -56,6 +56,18 @@ export function createNotificationDeliveryService(
   const recentDesktopNotifications = new Map<string, number>()
   const recentMobileNotifications = new Map<string, number>()
 
+  // A failed lookup must never cost the user the notification itself.
+  const resolvePromptRefSafely = (
+    request: NotificationDispatchRequest
+  ): MobileNotificationPromptRef | undefined => {
+    try {
+      return deps.resolvePromptRef?.(request)
+    } catch (error) {
+      console.warn('[notifications] Could not resolve the prompt reference', error)
+      return undefined
+    }
+  }
+
   const dedupeKeyFor = (request: NotificationDispatchRequest): string =>
     request.worktreeId ?? request.worktreeLabel ?? 'global'
 
@@ -110,7 +122,7 @@ export function createNotificationDeliveryService(
           const promptRef =
             request.agentSessionId && request.agentState === 'blocked'
               ? { kind: 'structured' as const, sessionId: request.agentSessionId }
-              : deps.resolvePromptRef?.(request)
+              : resolvePromptRefSafely(request)
           deps.dispatchMobileNotification({
             type: 'notification',
             emittedAt: deps.now(),

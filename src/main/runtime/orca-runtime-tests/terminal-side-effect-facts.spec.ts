@@ -576,6 +576,11 @@ describe('terminal side-effect fact channel', () => {
         foreground: () => {
           throw new TypeError('getForegroundProcess is unavailable')
         }
+      },
+      {
+        name: 'unverifiable verdict even when the foreground read answers',
+        presence: 'unverifiable' as const,
+        foreground: async () => 'zsh'
       }
     ])('stays silent for $name', async ({ presence, foreground }) => {
       const { runtime } = createSideEffectRuntime(async () => presence)
