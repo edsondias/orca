@@ -54,12 +54,19 @@ export function createCarReplyRouter(deps: Deps) {
       if (!accept(dedupeKey)) {
         return { kind: 'duplicate' }
       }
-      const result = await deps.send(prompt.hostId, {
-        terminal: prompt.terminalHandle,
-        fence: prompt.fence,
-        text: keystroke.text,
-        enter: keystroke.enter
-      })
+      let result: CarReplySendResult
+      try {
+        result = await deps.send(prompt.hostId, {
+          terminal: prompt.terminalHandle,
+          fence: prompt.fence,
+          text: keystroke.text,
+          enter: keystroke.enter
+        })
+      } catch {
+        // send threw (network error, etc); release key so retry can be sent
+        accept.forget(dedupeKey)
+        return { kind: 'rejected' }
+      }
       switch (result) {
         case 'delivered':
           accept.record(dedupeKey)

@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { bindDeferredRpcOperation, defineRpcOperation } from '../transport/rpc-operation'
 import { rpcResultVariant } from '../transport/rpc-operation-result-reader'
 
-const carReplySchema = z
+export const carAgentPromptReplySchema = z
   .looseObject({ delivered: z.boolean(), reason: z.string().optional() })
   .transform((reply) =>
     reply.delivered ? 'delivered' : reply.reason === 'prompt-changed' ? 'prompt-changed' : 'failed'
@@ -15,6 +15,6 @@ export const carAgentPromptReply = bindDeferredRpcOperation(
     method: 'terminal.replyToAgentPrompt',
     acceptance: 'object-result-or-null',
     barrier: 'after-caller-barrier',
-    read: rpcResultVariant('car-agent-prompt-reply', carReplySchema)
+    read: rpcResultVariant('car-agent-prompt-reply', carAgentPromptReplySchema)
   })
 )

@@ -116,4 +116,14 @@ describe('car reply router', () => {
     await router.reply('c1', prompt, 'um')
     expect(router.isHostUnsupported('h1')).toBe(true)
   })
+
+  it('allows retry when send throws (error releases dedupe key)', async () => {
+    const send = vi.fn()
+    send.mockRejectedValueOnce(new Error('network error'))
+    send.mockResolvedValueOnce('delivered')
+    const router = createCarReplyRouter({ send, now: () => 0 })
+    expect((await router.reply('c1', prompt, 'um')).kind).toBe('rejected')
+    expect((await router.reply('c1', prompt, 'um')).kind).toBe('delivered')
+    expect(send).toHaveBeenCalledTimes(2)
+  })
 })
