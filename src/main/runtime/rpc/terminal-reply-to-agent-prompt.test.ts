@@ -117,6 +117,28 @@ describe('terminal.replyToAgentPrompt', () => {
     expect(rollback).not.toHaveBeenCalled()
   })
 
+  it('writes without a floor claim when the mobile client is not a subscriber', async () => {
+    const begin = vi.fn().mockReturnValue(null)
+    const reply = vi.fn(async (_h, _f, _a, options) => {
+      options.reserveWrite('pty-1')
+      await options.afterWrite('pty-1')
+    })
+    const response = await dispatcherWith(reply, { beginMobileInputFloor: begin }).dispatch({
+      id: 'r8',
+      authToken: 'tok',
+      method: 'terminal.replyToAgentPrompt',
+      params: {
+        terminal: 't1',
+        fence,
+        text: '1',
+        enter: false,
+        client: { id: 'car', type: 'mobile' }
+      }
+    })
+    expect(response).toMatchObject({ ok: true, result: { delivered: true } })
+    expect(begin).toHaveBeenCalledWith('pty-1', 'car')
+  })
+
   it('rolls the floor back when the fence refuses the write', async () => {
     const commit = vi.fn()
     const rollback = vi.fn()

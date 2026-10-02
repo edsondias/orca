@@ -18,7 +18,9 @@ export type MobileInputFloorHooks = {
 
 export function createMobileInputFloorHooks(
   runtime: OrcaRuntimeService,
-  floorClientId: string | null
+  floorClientId: string | null,
+  /** 'optional' writes without a claim when the client may not take the floor (it is not a subscriber). */
+  floorRequirement: 'required' | 'optional' = 'required'
 ): MobileInputFloorHooks {
   const claim: MobileInputFloorClaimHolder = { current: null }
   return {
@@ -26,7 +28,7 @@ export function createMobileInputFloorHooks(
       ? {
           reserveWrite: (ptyId) => {
             const next = runtime.beginMobileInputFloor(ptyId, floorClientId)
-            if (!next) {
+            if (!next && floorRequirement === 'required') {
               throw new Error('mobile_input_floor_unavailable')
             }
             claim.current = next
@@ -53,5 +55,6 @@ export function admitMobileTerminalInput(
   const driver = leaf?.ptyId ? runtime.getDriver(leaf.ptyId) : null
   const locked = leaf?.ptyId ? isTerminalInputLockedForClient(runtime, leaf.ptyId, client) : false
   const floorClientId = leaf?.ptyId ? resolveMobileFloorClientId(driver, client) : null
-  return { locked, ...createMobileInputFloorHooks(runtime, floorClientId) }
+  // Why: a prompt reply (e.g. from the car) needs no viewport, so a non-subscriber writes without taking the floor.
+  return { locked, ...createMobileInputFloorHooks(runtime, floorClientId, 'optional') }
 }

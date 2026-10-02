@@ -80,11 +80,16 @@ export class OrcaRuntimeWithEmitDaemonPtyTransientFact extends OrcaRuntimeWithSc
 
   // Callers invoke this only for a confirmed exit verdict, never for lost contact or silence.
   protected announceAgentExitedToMobile(ptyId: string): void {
+    const attribution = this.resolveTerminalSideEffectAttribution(ptyId)
+    const worktreeName = attribution.worktreeId
+      ? this.store?.getWorktreeMeta(attribution.worktreeId)?.displayName
+      : undefined
     this.mobileNotifications.dispatch(
       buildAgentExitedMobileNotification({
         ptyId,
         generation: this.getPtyLifecycleGeneration(ptyId),
-        attribution: this.resolveTerminalSideEffectAttribution(ptyId),
+        attribution,
+        label: worktreeName || this.getTrackedDisplayTitleForPty(ptyId),
         emittedAt: Date.now()
       })
     )

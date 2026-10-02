@@ -122,7 +122,9 @@ export function createNotificationDeliveryService(
           const promptRef =
             request.agentSessionId && request.agentState === 'blocked'
               ? { kind: 'structured' as const, sessionId: request.agentSessionId }
-              : resolvePromptRefSafely(request)
+              : request.agentState === 'blocked' || request.agentState === 'waiting'
+                ? resolvePromptRefSafely(request)
+                : undefined
           deps.dispatchMobileNotification({
             type: 'notification',
             emittedAt: deps.now(),

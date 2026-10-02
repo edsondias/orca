@@ -7,6 +7,8 @@ import {
 } from './agent-prompt-submission-runtime-test-fixture'
 import { OrcaRuntimeService } from './orca-runtime'
 import { makeStore } from './runtime-rpc-worktree-store-fixtures'
+import { RpcDispatcher } from './rpc/dispatcher'
+import { TERMINAL_METHODS } from './rpc/methods/terminal'
 
 const worktrees = vi.hoisted(() => [
   {
@@ -35,6 +37,7 @@ async function blockedRuntime(onWrite: Parameters<typeof createAgentPromptSubmis
 async function hookRuntime() {
   const rows: AgentStatusIpcPayload[] = []
   const writes: string[] = []
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the fixture store implements every member the runtime reads here.
   const runtime = new OrcaRuntimeService(makeStore() as never, undefined, {
     getAgentStatusSnapshot: () => rows
   })
@@ -136,6 +139,30 @@ describe('replyToTerminalAgentPrompt', () => {
     expect(writes.slice(before)).toEqual(['1'])
   })
 
+  it('writes a reply from a mobile client that never subscribed to the terminal', async () => {
+    const { runtime, handle, writes } = await blockedRuntime(() => undefined)
+    const fence = runtime.getTerminalAgentPromptFence(handle)
+    if (!fence) {
+      throw new Error('expected a fence for the blocked terminal')
+    }
+    const before = writes.length
+    const response = await new RpcDispatcher({ runtime, methods: TERMINAL_METHODS }).dispatch({
+      id: 'car-1',
+      authToken: 'tok',
+      method: 'terminal.replyToAgentPrompt',
+      params: {
+        terminal: handle,
+        fence,
+        text: '1',
+        enter: false,
+        client: { id: 'car-device', type: 'mobile' }
+      }
+    })
+    expect(response).toMatchObject({ ok: true, result: { delivered: true } })
+    expect(writes.slice(before)).toEqual(['1'])
+    expect(runtime.getDriver('pty-prompt').kind).not.toBe('mobile')
+  })
+
   describe('hook-reported blocks', () => {
     it('fences on the hook row stateStartedAt and prompt content', async () => {
       const { runtime, handle, writes, rows, blockedRow } = await hookRuntime()
@@ -188,7 +215,7 @@ describe('replyToTerminalAgentPrompt', () => {
     runtime.onPtyData('pty-prompt', ']0;bichir', 101)
     await vi.waitFor(() =>
       expect(runtime.getMissedNotificationsSince(0, undefined)).toContainEqual(
-        expect.objectContaining({ source: 'agent-exited', title: 'Agent exited' })
+        expect.objectContaining({ source: 'agent-exited', title: 'Agent exited in foo' })
       )
     )
   })

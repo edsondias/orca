@@ -54,4 +54,19 @@ describe('mobile notification prompt reference', () => {
     expect(plain).toHaveLength(1)
     expect(plain[0]).toMatchObject({ source: 'terminal-bell', legacySocketAllowed: true })
   })
+
+  it('names the workspace whose agent exited', () => {
+    const event = buildAgentExitedMobileNotification({
+      ptyId: 'p',
+      generation: 1,
+      attribution: { worktreeId: 'repo::/w/feature-x' },
+      label: 'feature-x',
+      emittedAt: 9_000
+    })
+    expect(event).toMatchObject({
+      title: 'Agent exited in feature-x',
+      desktopAllowed: false,
+      source: 'agent-exited'
+    })
+  })
 })

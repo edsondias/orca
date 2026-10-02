@@ -177,6 +177,21 @@ describe('createNotificationDeliveryService', () => {
     )
   })
 
+  it('resolves no terminal prompt reference unless the agent is blocked or waiting', async () => {
+    const harness = makeHarness(makeSettings())
+    const resolvePromptRef = vi.fn(() => ({
+      kind: 'terminal' as const,
+      terminalHandle: 't1',
+      fence: { generation: 1, permissionSequence: 0, blockedSince: 5, promptKey: null }
+    }))
+    harness.deps.resolvePromptRef = resolvePromptRef
+    await createNotificationDeliveryService(harness.deps).dispatch(
+      makeRequest({ paneKey: 'p1', agentState: 'done' })
+    )
+    expect(resolvePromptRef).not.toHaveBeenCalled()
+    expect(harness.dispatchMobileNotification.mock.calls[0]?.[0]).not.toHaveProperty('promptRef')
+  })
+
   it('sends a structured reference when a blocked request names an agent session', async () => {
     const harness = makeHarness(makeSettings())
     harness.deps.resolvePromptRef = () => undefined
