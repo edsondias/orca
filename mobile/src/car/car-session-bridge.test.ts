@@ -47,6 +47,7 @@ function harness(sendResult = 'delivered') {
       onEvent = listener
       return () => {}
     }),
+    fetchMissed: vi.fn().mockResolvedValue([]),
     send: vi.fn().mockResolvedValue(sendResult),
     log: vi.fn(),
     canNotify: vi.fn().mockResolvedValue(true),
@@ -124,6 +125,37 @@ describe('car session bridge', () => {
     expect(h.deps.send).not.toHaveBeenCalled()
     h.reply({ conversationId: id, text: 'um' })
     await vi.waitFor(() => expect(h.deps.send).toHaveBeenCalledTimes(1))
+  })
+
+  it('ignores an Android Auto re-delivery of a reply that was already sent', async () => {
+    const h = harness()
+    await h.bridge.start([fakeHost()])
+    h.emit(blocked)
+    await Promise.resolve()
+    const id = h.published.at(-1)!.id
+    h.reply({ conversationId: id, text: 'um' })
+    await vi.waitFor(() => expect(h.published.at(-1)?.messages.at(-1)?.text).toBe('✓ Sent: Yes'))
+    const publishedBefore = h.published.length
+    h.reply({ conversationId: id, text: 'um' })
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(h.published).toHaveLength(publishedBefore)
+    expect(h.deps.send).toHaveBeenCalledTimes(1)
+  })
+
+  it('replays what the car missed while a host was disconnected', async () => {
+    const h = harness()
+    await h.bridge.start([fakeHost()])
+    h.emit(blocked)
+    await Promise.resolve()
+    h.bridge.setHosts([])
+    h.deps.fetchMissed.mockResolvedValue([
+      { ...blocked, notificationSeq: 8, promptRef: { ...blocked.promptRef, terminalHandle: 't2' } }
+    ])
+    const reconnected = fakeHost()
+    h.bridge.setHosts([reconnected])
+    expect(h.deps.fetchMissed).toHaveBeenCalledWith(reconnected, { lastSeenSeq: 7 })
+    await vi.waitFor(() => expect(h.published.at(-1)?.id).toBe('h1:terminal:t2'))
   })
 
   it('stops offering replies on a host without the method', async () => {

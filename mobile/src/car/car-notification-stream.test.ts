@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { RpcClient } from '../transport/rpc-client'
-import { subscribeToCarNotifications } from './car-notification-stream'
+import { fetchMissedCarNotifications, subscribeToCarNotifications } from './car-notification-stream'
 
 function fakeClient() {
   let listener: (data: unknown) => void = () => {}
@@ -53,5 +53,35 @@ describe('subscribeToCarNotifications', () => {
     expect(f.sendRequest).toHaveBeenCalledWith('notifications.unsubscribe', {
       subscriptionId: 's1'
     })
+  })
+})
+
+describe('fetchMissedCarNotifications', () => {
+  it('asks for desktop-suppressed events since the watermark and returns them', async () => {
+    const f = fakeClient()
+    const missed = [{ type: 'notification', notificationSeq: 8 }]
+    f.sendRequest.mockResolvedValue({
+      id: 'r',
+      ok: true,
+      result: { notifications: missed, epoch: 'e1' }
+    })
+    await expect(
+      fetchMissedCarNotifications(f.client, { lastSeenSeq: 7, epoch: 'e1' })
+    ).resolves.toEqual(missed)
+    expect(f.sendRequest).toHaveBeenCalledWith('notifications.getMissedSince', {
+      lastSeenSeq: 7,
+      epoch: 'e1',
+      includeDesktopSuppressed: true
+    })
+  })
+
+  it('reports null when the host refuses', async () => {
+    const f = fakeClient()
+    f.sendRequest.mockResolvedValue({
+      id: 'r',
+      ok: false,
+      error: { code: 'internal', message: 'boom' }
+    })
+    await expect(fetchMissedCarNotifications(f.client, { lastSeenSeq: 7 })).resolves.toBeNull()
   })
 })

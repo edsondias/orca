@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { StyleSheet, Switch, Text, View } from 'react-native'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
 import { carSessionStore } from '../car/car-session-store'
@@ -7,6 +7,10 @@ import { MobileSettingsFrame } from './mobile-settings-menu'
 
 export default function CarSettingsScreen({ onBack }: { onBack?: () => void }) {
   const [enabled, setEnabled] = useState(false)
+  const startProblem = useSyncExternalStore(
+    carSessionStore.subscribe,
+    () => carSessionStore.getSnapshot().startProblem
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -35,8 +39,14 @@ export default function CarSettingsScreen({ onBack }: { onBack?: () => void }) {
           <View style={styles.rowContent}>
             <Text style={styles.rowLabel}>Car mode</Text>
             <Text style={styles.rowSublabel}>
-              Keep Orca connected for Android Auto while the app is closed
+              Keeps a connection and a notification active for Android Auto until you turn it off
             </Text>
+            {startProblem === 'service-start-refused' ? (
+              <Text style={styles.rowSublabel}>
+                Android did not let Car mode start in the background. Open Orca once with the car
+                connected.
+              </Text>
+            ) : null}
           </View>
           <Switch
             accessibilityLabel="Car mode"

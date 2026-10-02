@@ -2,6 +2,8 @@ import type { OrcaCarMessaging } from '../../modules/orca-car-messaging/src'
 import type { RpcClient } from '../transport/rpc-client'
 import { CAR_COPY } from './car-copy'
 import { createCarConversationStore, type CarNotificationEvent } from './car-conversation-store'
+import { createCarNotificationCatchUp } from './car-notification-catch-up'
+import { CAR_REPLY_DEDUPE_MS } from './car-reply-normalization'
 import { carReplyReceipt, createCarReplyRouter } from './car-reply-router'
 
 export type CarBridgeHost = {
@@ -31,6 +33,7 @@ type Deps = {
     | 'addReplyListener'
   >
   subscribe(host: CarBridgeHost, onEvent: (event: unknown) => void): () => void
+  fetchMissed: Parameters<typeof createCarNotificationCatchUp>[0]['fetchMissed']
   send: Parameters<typeof createCarReplyRouter>[0]['send']
   log(hostId: string, code: CarLogCode, detail: string): void
   canNotify(): Promise<boolean>
@@ -40,15 +43,12 @@ type Deps = {
 export const CAR_DISCONNECTED_NOTICE_MS = 60_000
 export const CAR_SYSTEM_CONVERSATION_ID = 'orca:system'
 
-function isCarNotificationEvent(value: unknown): value is CarNotificationEvent {
-  return (
-    typeof value === 'object' && value !== null && 'type' in value && value.type === 'notification'
-  )
-}
-
 export function createCarSessionBridge(deps: Deps) {
   const conversations = createCarConversationStore(deps.now)
   const router = createCarReplyRouter({ send: deps.send, now: deps.now })
+  const catchUp = createCarNotificationCatchUp(deps)
+  // Spoken reply per conversation and the prompt it answered, so an Android Auto re-delivery stays silent.
+  const answered = new Map<string, { seq: number; at: number }>()
   const subscriptions = new Map<string, { client: RpcClient; unsubscribe: () => void }>()
   let replyListener: { remove(): void } | null = null
   // Bumped by stop() so a start still awaiting the native service attaches nothing.
@@ -63,10 +63,7 @@ export function createCarSessionBridge(deps: Deps) {
     }
   }
 
-  const onEvent = (hostId: string) => (event: unknown) => {
-    if (!isCarNotificationEvent(event)) {
-      return
-    }
+  const onEvent = (hostId: string) => (event: CarNotificationEvent) => {
     const conversation = conversations.applyEvent(hostId, event)
     if (conversation && router.isHostUnsupported(hostId)) {
       conversations.clearPendingPrompt(conversation.id)
@@ -83,7 +80,16 @@ export function createCarSessionBridge(deps: Deps) {
     conversationId: string
     text: string
   }) => {
+    const answerKey = `${conversationId}|${text.trim()}`
+    const previous = answered.get(answerKey)
     const prompt = conversations.pendingPrompt(conversationId)
+    if (
+      previous &&
+      deps.now() - previous.at < CAR_REPLY_DEDUPE_MS &&
+      (!prompt || prompt.notificationSeq === previous.seq)
+    ) {
+      return
+    }
     if (!prompt) {
       publish(
         conversations.appendOrcaMessage(
@@ -97,6 +103,14 @@ export function createCarSessionBridge(deps: Deps) {
     const outcome = await router.reply(conversationId, prompt, text)
     if (outcome.kind === 'duplicate') {
       return
+    }
+    if (outcome.kind !== 'not-an-option') {
+      for (const [key, entry] of answered) {
+        if (deps.now() - entry.at >= CAR_REPLY_DEDUPE_MS) {
+          answered.delete(key)
+        }
+      }
+      answered.set(answerKey, { seq: prompt.notificationSeq, at: deps.now() })
     }
     // The driver can answer again after speech that matched no option.
     // A newer prompt for the same agent may have arrived while the reply was in flight; it stays pending.
@@ -167,7 +181,7 @@ export function createCarSessionBridge(deps: Deps) {
       if (!subscriptions.has(host.hostId)) {
         subscriptions.set(host.hostId, {
           client: host.client,
-          unsubscribe: deps.subscribe(host, onEvent(host.hostId))
+          unsubscribe: catchUp.attach(host, onEvent(host.hostId))
         })
         deps.log(host.hostId, 'car-session-started', 'notifications stream attached')
       }
@@ -217,6 +231,8 @@ export function createCarSessionBridge(deps: Deps) {
         deps.log(hostId, 'car-session-ended', 'car session ended')
       }
       subscriptions.clear()
+      catchUp.clear()
+      answered.clear()
       replyListener?.remove()
       replyListener = null
       conversations.clear()

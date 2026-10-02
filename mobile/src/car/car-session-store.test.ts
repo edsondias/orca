@@ -50,4 +50,15 @@ describe('car session store', () => {
     vi.advanceTimersByTime(CAR_SESSION_END_GRACE_MS)
     expect(listener).toHaveBeenCalledTimes(3)
   })
+
+  it('records why the session could not start and notifies the settings screen', () => {
+    const store = make()
+    const listener = vi.fn()
+    store.subscribe(listener)
+    store.setStartProblem('service-start-refused')
+    expect(store.getSnapshot().startProblem).toBe('service-start-refused')
+    expect(listener).toHaveBeenCalledTimes(1)
+    store.setStartProblem(null)
+    expect(store.getSnapshot().startProblem).toBeNull()
+  })
 })
