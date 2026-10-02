@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-// oxlint-disable-next-line typescript/no-require-imports -- the plugin is CommonJS, as Expo loads it.
 const plugin = require('../plugins/with-android-auto.js')
 
 function emptyManifest() {

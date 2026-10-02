@@ -88,6 +88,69 @@ describe('mock-server-car-scenario', () => {
     expect(responses[0].result).toEqual({ delivered: true })
   })
 
+  it('accepts the client the car sends and claims no input floor for it', () => {
+    process.env.MOCK_CAR = '1'
+    const fence = { generation: 1, permissionSequence: 1, blockedSince: 1_000, promptKey: null }
+    const respond = vi.fn((response: RpcResponse) => {
+      responses.push(response)
+    })
+    handleMockCarRequest(
+      {
+        id: '6',
+        method: 'terminal.replyToAgentPrompt',
+        params: {
+          terminal: 'mock-terminal',
+          fence,
+          text: '1',
+          enter: false,
+          client: { id: 'car-device', type: 'mobile' }
+        }
+      },
+      respond,
+      success,
+      error
+    )
+    expect(responses[0].result).toEqual({ delivered: true })
+  })
+
+  it('refuses a malformed client like the desktop schema does', () => {
+    process.env.MOCK_CAR = '1'
+    const fence = { generation: 1, permissionSequence: 1, blockedSince: 1_000, promptKey: null }
+    const respond = vi.fn((response: RpcResponse) => {
+      responses.push(response)
+    })
+    handleMockCarRequest(
+      {
+        id: '7',
+        method: 'terminal.replyToAgentPrompt',
+        params: { fence, text: '1', enter: false, client: { id: 42, type: 'car' } }
+      },
+      respond,
+      success,
+      error
+    )
+    expect(responses[0].ok).toBe(false)
+  })
+
+  it('answers the reconnect catch-up with no missed events', () => {
+    process.env.MOCK_CAR = '1'
+    const respond = vi.fn((response: RpcResponse) => {
+      responses.push(response)
+    })
+    const handled = handleMockCarRequest(
+      {
+        id: '8',
+        method: 'notifications.getMissedSince',
+        params: { lastSeenSeq: 1, epoch: 'mock-epoch', includeDesktopSuppressed: true }
+      },
+      respond,
+      success,
+      error
+    )
+    expect(handled).toBe(true)
+    expect(responses[0].result).toEqual({ notifications: [], epoch: 'mock-epoch' })
+  })
+
   it('rejects second identical reply due to prompt change', () => {
     process.env.MOCK_CAR = '1'
     const fence = { generation: 1, permissionSequence: 1, blockedSince: 1_000, promptKey: null }

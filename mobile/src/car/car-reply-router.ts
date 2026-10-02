@@ -1,7 +1,7 @@
 import { CAR_COPY } from './car-copy'
 import type { CarPendingPrompt } from './car-conversation-store'
 import {
-  carPermissionOptions,
+  carPromptMenu,
   createCarReplyDeduplicator,
   normalizeCarReply
 } from './car-reply-normalization'
@@ -22,6 +22,7 @@ export type CarReplyOutcome =
   | { kind: 'rejected' }
   | { kind: 'duplicate' }
   | { kind: 'not-an-option' }
+  | { kind: 'reply-from-phone' }
 
 type Deps = {
   send(
@@ -42,10 +43,12 @@ export function createCarReplyRouter(deps: Deps) {
       prompt: CarPendingPrompt,
       spoken: string
     ): Promise<CarReplyOutcome> {
-      const keystroke = normalizeCarReply(
-        spoken,
-        carPermissionOptions(prompt.permission, prompt.agentState)
-      )
+      const menu = carPromptMenu(prompt.permission, prompt.agentState)
+      // Without a recognized menu nothing is sent: free text with Enter could confirm the default.
+      if (!menu) {
+        return { kind: 'reply-from-phone' }
+      }
+      const keystroke = normalizeCarReply(spoken, menu.permission)
       if (!keystroke) {
         return { kind: 'not-an-option' }
       }
@@ -108,5 +111,7 @@ export function carReplyReceipt(outcome: CarReplyOutcome): string | null {
       return null
     case 'not-an-option':
       return CAR_COPY.chooseOption
+    case 'reply-from-phone':
+      return CAR_COPY.replyFromPhone
   }
 }

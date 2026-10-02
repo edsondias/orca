@@ -1,5 +1,6 @@
 import type { CarConversation, CarMessage } from '../../modules/orca-car-messaging/src'
 import { CAR_COPY } from './car-copy'
+import { carPromptMenu } from './car-reply-normalization'
 
 export type CarNotificationEvent = {
   type: 'notification'
@@ -75,25 +76,34 @@ export function createCarConversationStore(now: () => number) {
       }
       const id = conversationIdFor(hostId, event)
       const at = event.emittedAt ?? now()
-      const text =
-        event.source === 'agent-exited' ? CAR_COPY.agentExited : event.body || event.title
       const ref = event.promptRef
-      if (ref?.kind === 'terminal' && event.notificationSeq !== undefined) {
+      const agentState = event.agentState ?? 'blocked'
+      // The subject comes from the same hook row as the fence, so the car never reads a different prompt.
+      const menu = ref?.kind === 'terminal' ? carPromptMenu(ref.permission, agentState) : null
+      const text =
+        event.source === 'agent-exited'
+          ? CAR_COPY.agentExited
+          : ref?.kind === 'terminal'
+            ? (menu?.subject ?? CAR_COPY.waitingForInput)
+            : event.body || event.title
+      if (ref?.kind === 'terminal' && menu && event.notificationSeq !== undefined) {
         pending.set(id, {
           hostId,
           terminalHandle: ref.terminalHandle,
           fence: ref.fence,
           notificationSeq: event.notificationSeq,
-          agentState: event.agentState ?? 'blocked',
+          agentState,
           ...(ref.permission ? { permission: ref.permission } : {})
         })
       } else {
         pending.delete(id)
       }
+      const readOnlyPrompt =
+        ref?.kind === 'structured' || (ref?.kind === 'terminal' && !pending.has(id))
       const messages: CarMessage[] = [
         ...(conversations.get(id)?.messages ?? []),
         { sender: 'agent', text, timestamp: at },
-        ...(ref?.kind === 'structured'
+        ...(readOnlyPrompt
           ? [{ sender: 'orca' as const, text: CAR_COPY.replyFromPhone, timestamp: at }]
           : [])
       ]

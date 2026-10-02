@@ -4,6 +4,7 @@ export const CAR_COPY = {
   promptChanged: 'The agent already moved on; reply discarded',
   hostUnverifiable: "No contact with the host; can't tell if the agent is alive",
   agentExited: 'Agent exited',
+  waitingForInput: 'The agent is waiting for your input',
   desktopTooOld: 'Update Orca desktop to reply from the car',
   replyFromPhone: 'Reply to this one from your phone',
   disconnected: 'No connection to the desktop',

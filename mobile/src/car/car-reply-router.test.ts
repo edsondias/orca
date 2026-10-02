@@ -126,4 +126,16 @@ describe('car reply router', () => {
     expect((await router.reply('c1', prompt, 'um')).kind).toBe('delivered')
     expect(send).toHaveBeenCalledTimes(2)
   })
+
+  it('sends nothing for a prompt without a menu and points the driver to the phone', async () => {
+    const send = vi.fn()
+    const outcome = await createCarReplyRouter({ send, now: () => 0 }).reply(
+      'c1',
+      { ...prompt, permission: { lastAssistantMessage: 'Should I keep going?' } },
+      'não'
+    )
+    expect(outcome.kind).toBe('reply-from-phone')
+    expect(carReplyReceipt(outcome)).toBe('Reply to this one from your phone')
+    expect(send).not.toHaveBeenCalled()
+  })
 })

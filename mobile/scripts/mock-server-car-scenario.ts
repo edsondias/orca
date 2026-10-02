@@ -26,11 +26,24 @@ function blockedEvent(seq: number) {
   }
 }
 
+// Mirrors the desktop schema: a client is optional, and the host claims no input floor for a non-subscriber.
+function isValidReplyClient(client: unknown): boolean {
+  if (client === undefined) {
+    return true
+  }
+  if (typeof client !== 'object' || client === null) {
+    return false
+  }
+  const id: unknown = Reflect.get(client, 'id')
+  const type: unknown = Reflect.get(client, 'type')
+  return typeof id === 'string' && (type === 'mobile' || type === 'desktop')
+}
+
 export function handleMockCarRequest(
   request: RpcRequest,
   respond: Respond,
   success: Success,
-  _error: Failure
+  error: Failure
 ): boolean {
   if (process.env.MOCK_CAR !== '1') {
     return false
@@ -50,7 +63,15 @@ export function handleMockCarRequest(
     case 'notifications.unsubscribe':
       respond(success(request.id, { unsubscribed: true }))
       return true
+    case 'notifications.getMissedSince':
+      // Nothing is emitted while the car is detached, so a reconnect has nothing to replay.
+      respond(success(request.id, { notifications: [], epoch: 'mock-epoch' }))
+      return true
     case 'terminal.replyToAgentPrompt': {
+      if (!isValidReplyClient(request.params?.client)) {
+        respond(error(request.id, 'invalid_argument', 'Invalid client'))
+        return true
+      }
       const fence = request.params?.fence
       const matches = JSON.stringify(fence) === JSON.stringify(FENCE) && !promptAnswered
       promptAnswered = promptAnswered || matches
