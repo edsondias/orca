@@ -21,7 +21,7 @@ No carro, o celular fica no 4G, fora da rede de casa, e o pareamento atual é po
 3. Os eventos chegam ao carro por uma sessão de carro ao vivo, e não pelo push do gateway.
    Enquanto o Android Auto estiver conectado, um serviço em primeiro plano mantém as assinaturas `notifications.subscribe` e `worktree.ps` pelo Tailscale.
 4. A guarda contra resposta atrasada fica no host.
-   Sessões estruturadas usam o `expectedRevision` que já existe, e agentes de terminal usam o método novo `terminal.replyToAgentPrompt` com a `permissionSequence`.
+   Sessões estruturadas usam o `expectedRevision` que já existe, e agentes de terminal usam o método novo `terminal.replyToAgentPrompt` com a guarda `TerminalAgentPromptFence`, que vai além da `permissionSequence`.
 5. As mudanças no que o desktop publica são só campos opcionais e aditivos.
 
 ## Alternativas consideradas
@@ -39,8 +39,9 @@ No carro, o celular fica no 4G, fora da rede de casa, e o pareamento atual é po
 
 O caso principal, destravar um agente por voz, chega já na fase 1.
 O desktop precisa estar ligado e alcançável pelo Tailscale durante a viagem.
-Se o app estiver totalmente fechado, plugar o cabo não liga a sessão na fase 1.
-O "Modo carro" cobre esse caso até a fase 2, quando o ícone do Orca no carro passa a acordar o app.
+Se o app estiver totalmente fechado, plugar o cabo não liga a sessão na fase 1, porque não há tarefa headless.
+Abrir o app uma vez cobre esse caso até a fase 2, quando o ícone do Orca no carro passa a acordar o app.
+Na fase 1, sessões estruturadas avisam no carro sem a ação de responder, que vem na story ST-06b.
 Um desktop antigo, sem o método novo, faz o carro avisar sem oferecer resposta.
 A Car App Library com `ConversationItem` está em beta e só seria publicável nas faixas de teste da Play Store, o que não afeta o uso pessoal.
 O limite de 5 telas por tarefa pode fechar o painel quando agentes entram e saem.

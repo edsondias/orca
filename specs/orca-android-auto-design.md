@@ -33,7 +33,7 @@ A ordem das fases é notificações, depois painel, depois ditado.
 O celular tem Android 9 ou superior, e isso ainda será confirmado pelo adb.
 O desktop fica ligado com o Orca aberto enquanto o usuário dirige.
 A opção de envio automático de mensagens do Android Auto fica desligada, porque é ela que garante o eco.
-O texto das mensagens segue o idioma do app.
+O texto das mensagens do carro é em inglês, porque o app não tem i18n (seção 9).
 
 ### Fora do escopo
 
@@ -61,7 +61,7 @@ Saída de terminal, logs ou diffs na tela do carro.
 ```
 Desktop (Orca)                                 Celular (Orca mobile)                          Carro
 notifications.subscribe ── Tailscale ──► Sessão de carro (serviço em primeiro plano)
-worktree.ps                                    ├─ CarConversationStore (JS)
+worktree.ps (fase 2)                           ├─ CarConversationStore (JS)
                                                ├─ CarSnapshot (JS) ──► CarImageRenderer (Kotlin)
                                                ├─ orca-car-messaging (Kotlin) ─────────────────► Android Auto
 terminal.replyToAgentPrompt ◄─────────────     └─ ReplyRouter (JS)
@@ -71,11 +71,11 @@ agentSession.respondToApproval ◄──────────
 | Unidade | Onde | Responsabilidade | Fase |
 |---|---|---|---|
 | Campos opcionais no `MobileNotificationDispatchEvent` | `src/main/runtime/runtime-mobile-notification-controller.ts` | Dizer qual prompt a resposta destrava e distinguir o agente encerrado | 1 |
-| `terminal.replyToAgentPrompt` | `src/main/runtime/rpc/methods/` | Escrever a resposta no PTY só se a `permissionSequence` ainda for a esperada | 1 |
+| `terminal.replyToAgentPrompt` | `src/main/runtime/rpc/methods/` | Escrever a resposta no PTY só se a guarda `TerminalAgentPromptFence` ainda valer | 1 |
 | Sessão de carro | `mobile/src/car/` e o módulo nativo | Manter vivas as assinaturas enquanto o Android Auto estiver conectado | 1 |
 | `orca-car-messaging` | `mobile/modules/orca-car-messaging/` | Notificação `MessagingStyle`, ações de responder e marcar como lida, receptor da resposta | 1 |
 | `CarConversationStore` | `mobile/src/car/` | Mapear cada agente para uma conversa estável e guardar o histórico da sessão | 1 |
-| `ReplyRouter` | `mobile/src/car/` | Normalizar a resposta, escolher o método de envio e publicar o recibo | 1 |
+| `ReplyRouter` | `mobile/src/car/` | Normalizar a resposta, escolher o método de envio e publicar o recibo, com os textos em inglês de `car-copy.ts` | 1 |
 | Config plugin `with-android-auto` | `mobile/plugins/` | Manifesto, `automotive_app_desc.xml`, serviços e permissões | 1 e 2 |
 | `CarSnapshot` e resumo de uma linha | `mobile/src/car/` | Montar a estrutura de dados do painel | 2 |
 | `OrcaCarAppService` e `CarPanelScreen` | módulo nativo | Telas do painel com `TabTemplate`, categoria `MESSAGING` | 2 |
@@ -94,16 +94,21 @@ Nenhum arquivo novo usa nomes como `helpers` ou `utils`.
 ### Gatilhos de início
 
 O usuário abre o Orca no celular com o Android Auto conectado, detectado pela `CarConnection`.
-O usuário liga o interruptor "Modo carro" no app, que continua ligado mesmo com o app fechado.
+O usuário liga o interruptor "Modo carro" no app, que continua ligado entre uma abertura e outra do app.
+Na fase 1 a sessão só começa com o app já iniciado, porque não há tarefa headless.
 A partir da fase 2, o usuário toca no ícone do Orca na tela do carro, e o Android Auto inicia o `OrcaCarAppService`.
 
 ### Efeitos do início
 
-O módulo nativo sobe um serviço em primeiro plano com a notificação fixa "Orca no carro".
-O tipo do serviço é `connectedDevice`, com `specialUse` como alternativa se o Android recusar.
+O módulo nativo sobe um serviço em primeiro plano com uma notificação fixa, num canal próprio de importância baixa e com o ícone pequeno de notificação do app.
+O serviço só é iniciado com o app em primeiro plano.
+Se o Android recusar o início, como acontece a partir do Android 12 em segundo plano, a sessão não começa.
+O tipo do serviço é `connectedDevice`, com `specialUse` como alternativa se o Android recusar o tipo.
 O JS recebe `carSessionActive=true`.
 Enquanto a sessão estiver ativa, o supervisor de conexão não aplica o fechamento por segundo plano (`RELAY_BACKGROUND_GRACE_MS` e a política equivalente da conexão direta).
-Ficam vivas a assinatura `notifications.subscribe`, com reposição por `notifications.getMissedSince` ao reconectar, e a consulta `worktree.ps` no ritmo que o app já usa.
+Fica viva a assinatura `notifications.subscribe`, com reposição por `notifications.getMissedSince` ao reconectar.
+A fase 1 não usa `worktree.ps`, que entra com o painel na fase 2.
+O serviço em primeiro plano mantém o processo vivo, e a partida a frio, sem o app aberto, fica para a fase 2.
 
 ### Fim
 
@@ -114,7 +119,8 @@ Depois disso, o serviço para, as conversas do carro são limpas e a política n
 
 Se o app estiver totalmente fechado e o usuário só plugar o cabo, nada liga a sessão.
 O Android não avisa apps comuns sobre a conexão com o carro.
-O "Modo carro" e abrir o app uma vez cobrem esse caso, e o ícone no carro resolve a partir da fase 2.
+Abrir o app uma vez cobre esse caso, e o ícone no carro resolve a partir da fase 2.
+O "Modo carro" sozinho não basta na fase 1, porque a sessão não parte a frio.
 
 ## 5. Fluxo de eventos e respostas
 
@@ -130,43 +136,69 @@ Todos os campos são opcionais e aditivos, então clientes antigos os ignoram.
 
 | Campo | Conteúdo |
 |---|---|
-| `promptRef` | `{ kind: 'terminal', terminalHandle, permissionSequence }` ou `{ kind: 'structured', sessionId, itemId, expectedRevision, options }` |
-| `source: 'agent-exited'` | Novo valor de `source` para o agente encerrado, emitido só com o veredito `exited` |
+| `promptRef` | `{ kind: 'terminal', terminalHandle, fence, interactivePrompt, lastAssistantMessage }` ou `{ kind: 'structured', sessionId }` |
+| `source: 'agent-exited'` | Novo valor de `source` para o agente encerrado, nascido no main como fato `agent-exited` |
 
+A `fence` do terminal é `{ generation, permissionSequence, blockedSince, promptKey }`.
+O `promptKey` são os 16 primeiros caracteres hexadecimais do sha256 de `toolName`, `toolInput` e `interactivePrompt` da linha de hook recente, porque o hook mantém o `stateStartedAt` entre prompts bloqueados seguidos.
+O `lastAssistantMessage` vai com até 4000 caracteres.
+O `promptRef` só é anexado a avisos de bloqueio, e uma falha ao montá-lo nunca suprime a notificação.
+O `promptRef` estruturado leva só o `sessionId`, e na fase 1 as sessões estruturadas avisam no carro sem a ação de responder, que fica para a story ST-06b.
+
+O aviso `agent-exited` não vai por push, porque o gateway só aceita as fontes de `MOBILE_PUSH_SOURCES`.
+Ele é publicado com `desktopAllowed: false`, então só a sessão de carro, que assina com `includeDesktopSuppressed`, o recebe, e os celulares antigos não.
+Ele é anunciado só com o veredito `exited`, ou quando não há veredito de presença e a leitura em primeiro plano respondeu, e nunca com `unverifiable` ou `live`.
+No carro ele aparece como uma conversa própria, "Agent exited", separada da conversa do agente.
 Um cliente antigo que receba um `source` desconhecido precisa tratá-lo como notificação genérica.
 O teste de compatibilidade da story ST-01 cobre esse caso.
 
 ### Resposta
 
 1. O Android Auto lê de volta a resposta transcrita e o usuário confirma.
-2. A resposta chega ao receptor nativo, que a repassa ao JS se ele estiver vivo, ou sobe uma tarefa headless.
+2. A resposta chega ao receptor nativo, que a repassa ao JS, mantido vivo pelo serviço em primeiro plano, porque a fase 1 não tem tarefa headless.
 3. O `ReplyRouter` normaliza o texto, conforme a seção 6.
-4. Para sessão estruturada, o envio usa `agentSession.respondToApproval` ou `agentSession.respondToQuestion`, com o `expectedRevision` como compare-and-set no host.
-5. Para agente de terminal, o envio usa `terminal.replyToAgentPrompt`, que só escreve no PTY se a `permissionSequence` ainda for a esperada.
-6. Se o host aceitar, entra na conversa o recibo "✓ Enviado: 1 (Yes)".
-7. Se o host recusar porque o prompt mudou, nada é escrito e entra a mensagem "O agente já seguiu; resposta descartada".
+4. Para sessão estruturada, a ST-06b usa `agentSession.respondToApproval` ou `agentSession.respondToQuestion`, com o `expectedRevision` como compare-and-set no host.
+5. Para agente de terminal, o envio usa `terminal.replyToAgentPrompt { terminal, fence, text, enter }`, que só escreve no PTY se a `fence` ainda valer.
+6. Se o host aceitar, entra na conversa o recibo "✓ Sent: 1 (Yes)".
+7. Se o host recusar porque o prompt mudou, nada é escrito e entra a mensagem "The agent already moved on; reply discarded".
+
+Teclas de opção vão com `enter: false`, como as respostas de permissão que o celular já envia.
+O método aceita um `client` opcional, com o mesmo esquema do `terminal.send`, e aplica o mesmo bloqueio de entrada por cliente e o mesmo piso de entrada do mobile.
+Um terminal bloqueado responde `terminal-locked`.
+Se o texto foi escrito mas o Enter foi retido porque o prompt mudou, o host responde `prompt-changed-after-text`.
 
 ### Por que a guarda fica no host
 
 Checar no celular e depois enviar deixa uma janela de corrida.
 O host de execução é o dono do status, conforme `docs/reference/agent-status-store.md`.
-O runtime já mantém uma `permissionSequence` por painel em `src/main/runtime/agent-prompt-submission-verification.ts`.
+O runtime já mantém uma `permissionSequence` por painel em `src/main/runtime/agent-prompt-submission-verification.ts`, mas só ela não basta.
+O bloqueio que vem do hook HTTP não incrementa a `permissionSequence`, e um respawn do painel a zera.
+Por isso a guarda é o `TerminalAgentPromptFence`, com `generation`, `permissionSequence`, `blockedSince` e `promptKey`.
+"Bloqueado" é decidido pela precedência de status do próprio runtime.
+A linha de hook vem do seletor de linhas recentes que já existe, que ignora linhas velhas, restauradas ou anteriores ao respawn.
 
 ### Desktop antigo
 
 O celular descobre se o host tem `terminal.replyToAgentPrompt` pela resposta do próprio host.
 Um erro de método inexistente marca o host como sem suporte, e essa marca fica guardada por host.
 Sem suporte, o carro avisa mas não oferece a ação "Responder".
+Um aviso sem `promptRef`, como "pronto" depois de "bloqueado", cai numa conversa própria.
+A conversa antiga ainda pode oferecer "Responder", e a guarda do host a recusa com "already moved on".
+O agrupamento correto fica para a fase 2, com o `worktree.ps`.
 O carro nunca cai para o `terminal.send` sem guarda.
 
 ## 6. Normalização da voz
 
-"um", "dois", "três", "sim" e "não" viram o número ou a opção somente quando o prompt tem opções numeradas e a frase inteira é só aquela palavra.
-Em qualquer outro caso, vai o texto ditado sem mudança.
+A normalização reaproveita `detectAgentPermission` e `parseApprovalFromStatus` do mobile.
+Com um menu de permissão detectado, só seguem as respostas que mapeiam para uma opção: número, "yes" ou "sim", "no" ou "não".
+Qualquer outra resposta recebe "Say the option number, or yes or no", e o prompt continua pendente.
+"Não" só mapeia para uma opção rotulada como deny ou no, e sem ela nada é enviado.
+Sem menu detectado, o texto ditado vai sem mudança, com Enter.
 O limite é de 500 caracteres.
 Uma entrega repetida pelo Android Auto é descartada por 30 segundos, pela chave `(conversa, sequência, texto)`.
+Uma resposta que falhou por causa transitória pode ser tentada de novo na hora.
 
-Para sessões estruturadas, as opções vêm prontas no `promptRef.options`.
+Para sessões estruturadas, a ST-06b lê as opções do item pendente por `agentSession.history`.
 Para agentes de terminal, detectar opções numeradas significa ler o que a CLI pinta na tela.
 Pela regra do repositório, essa leitura precisa ser escrita contra transcrições capturadas com `docs/reference/agent-pty-transcript-capture.md`, uma por CLI suportada.
 Enquanto não houver transcrição de uma CLI, a normalização fica desligada para ela e o texto vai sem mudança.
@@ -232,13 +264,17 @@ Para um agente que não está bloqueado, o texto vai como instrução nova pelo 
 
 | Situação | O que o carro diz |
 |---|---|
-| O prompt mudou ou o agente seguiu | "O agente já seguiu; resposta descartada" |
-| Host SSH sem contato | "Sem contato com o host; não sei se o agente está vivo", com o veredito `unverifiable` |
-| Processo encerrado | "Agente encerrado", só com o veredito `exited` |
-| Desktop sem o método novo | Aviso sem a ação de responder e a mensagem única "Atualize o Orca desktop para responder pelo carro" |
-| Conexão caída por mais de 60 segundos | Uma única mensagem "Sem conexão com o desktop", que some ao reconectar |
+| O prompt mudou ou o agente seguiu | "The agent already moved on; reply discarded" |
+| Host SSH sem contato | "No contact with the host; can't tell if the agent is alive", com o veredito `unverifiable` |
+| Host remoto sem contato ao responder | "Reply not sent", porque este método ainda não tem o código de recusa `unverifiable`, e nunca se afirma que o agente morreu |
+| Processo encerrado | "Agent exited", só com o veredito `exited` |
+| Resposta que não vira opção do menu | "Say the option number, or yes or no", e o prompt continua pendente |
+| Terminal bloqueado por outro cliente | "Reply not sent", a partir da recusa `terminal-locked` |
+| Desktop sem o método novo | Aviso sem a ação de responder e a mensagem única "Update Orca desktop to reply from the car" |
+| Conexão caída por mais de 60 segundos | Uma única mensagem "No connection to the desktop", que some ao reconectar |
 | Permissão de notificação negada | A sessão não começa e o app mostra o motivo |
 
+Os textos do carro estão em inglês em `mobile/src/car/car-copy.ts`, porque o mobile não tem i18n.
 Respostas não ficam em fila durante uma queda de conexão, porque uma aprovação atrasada é perigosa.
 O vocabulário de veredito segue `docs/reference/ssh-execution-boundary.md`, sem sinônimos.
 
@@ -260,12 +296,14 @@ Os eventos da sessão de carro entram no `connection-log` sem o texto das respos
 | `car-reply-normalization` | Conversão de palavras em números só com opções numeradas, limite de 500 caracteres e deduplicação |
 | `car-snapshot` | Vagas fixas, vaga "livre", hash estável e histórico de 30 minutos |
 | `CarConversationStore` | Conversa estável por agente, histórico da sessão e limpeza no fim |
-| `ReplyRouter` | Escolha do método, ausência de "Responder" sem suporte e mensagens de `unverifiable` e `exited` |
+| `ReplyRouter` | Escolha do método, ausência de "Responder" sem suporte, menu de permissão com resposta inválida, deduplicação com nova tentativa após falha transitória e mensagens de `unverifiable` e `exited` |
 | Ciclo da sessão | Transições de estado, tolerância de 60 segundos e exceção ao fechamento por segundo plano |
 
 ### Desktop (vitest, `pnpm test`)
 
-`terminal.replyToAgentPrompt` escreve quando a `permissionSequence` bate, recusa quando ela mudou e funciona num painel de host SSH.
+`terminal.replyToAgentPrompt` escreve quando a `fence` bate, recusa quando ela mudou (inclusive com `promptKey` diferente e após respawn) e funciona num painel de host SSH.
+O método responde `prompt-changed-after-text` e `terminal-locked` nos casos descritos na seção 5.
+O aviso `agent-exited` só é publicado com o veredito `exited`, e com `desktopAllowed: false`.
 Os campos opcionais novos do evento são ignorados por um cliente antigo.
 O método novo está no allowlist do mobile.
 
@@ -291,8 +329,8 @@ O CI do mobile não roda Gradle, então os testes Kotlin e o DHU ficam fora do C
 ## 12. Ambiente de desenvolvimento no Windows
 
 O desktop compila com Node 24, porque o Node 26 para Windows quebra os addons nativos com o MSVC.
-O `mobile/` precisa ser instalado com `pnpm install --config.node-linker=hoisted`.
-Sem isso, o layout isolado do pnpm gera caminhos acima de 260 caracteres que o ninja do CMake 3.22 não lê.
+O `mobile/` usa `nodeLinker: hoisted` em `mobile/pnpm-workspace.yaml` neste fork, então um `pnpm install` comum já serve.
+Sem esse ajuste, o layout isolado do pnpm gera caminhos acima de 260 caracteres que o ninja do CMake 3.22 não lê.
 O DHU é instalado pelo SDK Manager, em "Android Auto Desktop Head Unit Emulator".
 No celular, é preciso ativar o modo desenvolvedor do Android Auto, iniciar o servidor da unidade principal e rodar `adb forward tcp:5277 tcp:5277`.
 

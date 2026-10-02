@@ -19,6 +19,7 @@ Ele destrava o agente por voz, com eco antes do envio, sem tocar no celular.
 | [ST-04](../stories/ST-04-config-plugin-android-auto.md) | Config plugin `with-android-auto` | nenhuma |
 | [ST-05](../stories/ST-05-sessao-de-carro.md) | Sessão de carro | ST-03 |
 | [ST-06](../stories/ST-06-conversas-e-reply-router.md) | Conversas, `ReplyRouter` e recibos | ST-01, ST-02, ST-03, ST-05 |
+| [ST-06b](../stories/ST-06b-resposta-a-sessoes-estruturadas.md) | Resposta a sessões estruturadas pelo carro | ST-06 |
 | [ST-07](../stories/ST-07-validacao-dhu-e-carro.md) | Cenário no mock server e roteiros no DHU e no carro | ST-06 |
 
 ## Critério de conclusão
