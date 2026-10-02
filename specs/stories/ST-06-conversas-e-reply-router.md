@@ -15,7 +15,6 @@ Com um menu de permissão detectado, só as respostas que mapeiam para uma opç�
 "Não" só mapeia para uma opção rotulada como deny ou no.
 Sem menu detectado, o texto vai sem mudança, com Enter.
 Uma entrega repetida é descartada por 30 segundos, mas uma resposta que falhou por causa transitória pode ser tentada de novo na hora.
-Ligar a normalização de opções de agentes de terminal só para as CLIs que tiverem transcrição capturada.
 Criar o `ReplyRouter`, que usa `terminal.replyToAgentPrompt { terminal, fence, text, enter }` para agentes de terminal, com teclas de opção em `enter: false`.
 Na fase 1, sessões estruturadas avisam no carro sem a ação de responder, e a resposta a elas é a [ST-06b](ST-06b-resposta-a-sessoes-estruturadas.md).
 Um aviso sem `promptRef`, como "pronto" depois de "bloqueado", cai numa conversa própria, e a conversa antiga pode oferecer "Responder" até a guarda do host recusar com "already moved on".
@@ -29,5 +28,6 @@ Publicar o recibo e as mensagens de erro da seção 9 do design.
 - [ ] Com um menu detectado, uma resposta que não mapeia para opção recebe "Say the option number, or yes or no" e nada é enviado.
 - [ ] Uma resposta recusada pelo host gera "The agent already moved on; reply discarded" e nada é reenviado.
 - [ ] Com um host sem o método novo, o aviso aparece sem a ação de responder.
-- [ ] As mensagens de `unverifiable` e `exited` usam esse vocabulário, sem sinônimos.
+- [ ] Uma resposta a um host sem contato gera "Reply not sent", sem afirmar que o agente morreu.
+- [ ] O aviso de agente encerrado usa "Agent exited" só com o veredito `exited`.
 - [ ] O `connection-log` registra tamanho e resultado da resposta, nunca o texto.

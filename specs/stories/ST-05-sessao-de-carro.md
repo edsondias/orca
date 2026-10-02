@@ -11,7 +11,7 @@ Como usuário no carro, quero que o Orca continue conectado ao desktop com a tel
 
 Implementar os estados `inativa`, `ativa` e `encerrando`, conforme a seção 4 do design.
 Detectar a projeção do Android Auto com `CarConnection`.
-Criar o interruptor "Modo carro" nas configurações do app.
+Criar o interruptor "Modo carro (Car mode)" nas configurações do app.
 Subir o serviço em primeiro plano do tipo `connectedDevice`, com `specialUse` como alternativa, só com o app em primeiro plano.
 Se o Android recusar o início, como a partir do Android 12 em segundo plano, a sessão não começa.
 A notificação fixa usa um canal próprio de importância baixa e o ícone pequeno de notificação do app.

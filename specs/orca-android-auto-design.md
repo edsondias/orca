@@ -65,7 +65,7 @@ worktree.ps (fase 2)                           ├─ CarConversationStore (JS)
                                                ├─ CarSnapshot (JS) ──► CarImageRenderer (Kotlin)
                                                ├─ orca-car-messaging (Kotlin) ─────────────────► Android Auto
 terminal.replyToAgentPrompt ◄─────────────     └─ ReplyRouter (JS)
-agentSession.respondToApproval ◄──────────
+agentSession.respondToApproval ◄────────── (ST-06b)
 ```
 
 | Unidade | Onde | Responsabilidade | Fase |
@@ -94,7 +94,7 @@ Nenhum arquivo novo usa nomes como `helpers` ou `utils`.
 ### Gatilhos de início
 
 O usuário abre o Orca no celular com o Android Auto conectado, detectado pela `CarConnection`.
-O usuário liga o interruptor "Modo carro" no app, que continua ligado entre uma abertura e outra do app.
+O usuário liga o interruptor "Modo carro (Car mode)" no app, que continua ligado entre uma abertura e outra do app.
 Na fase 1 a sessão só começa com o app já iniciado, porque não há tarefa headless.
 A partir da fase 2, o usuário toca no ícone do Orca na tela do carro, e o Android Auto inicia o `OrcaCarAppService`.
 
@@ -120,7 +120,7 @@ Depois disso, o serviço para, as conversas do carro são limpas e a política n
 Se o app estiver totalmente fechado e o usuário só plugar o cabo, nada liga a sessão.
 O Android não avisa apps comuns sobre a conexão com o carro.
 Abrir o app uma vez cobre esse caso, e o ícone no carro resolve a partir da fase 2.
-O "Modo carro" sozinho não basta na fase 1, porque a sessão não parte a frio.
+O "Modo carro (Car mode)" sozinho não basta na fase 1, porque a sessão não parte a frio.
 
 ## 5. Fluxo de eventos e respostas
 
@@ -199,9 +199,8 @@ Uma entrega repetida pelo Android Auto é descartada por 30 segundos, pela chave
 Uma resposta que falhou por causa transitória pode ser tentada de novo na hora.
 
 Para sessões estruturadas, a ST-06b lê as opções do item pendente por `agentSession.history`.
-Para agentes de terminal, detectar opções numeradas significa ler o que a CLI pinta na tela.
-Pela regra do repositório, essa leitura precisa ser escrita contra transcrições capturadas com `docs/reference/agent-pty-transcript-capture.md`, uma por CLI suportada.
-Enquanto não houver transcrição de uma CLI, a normalização fica desligada para ela e o texto vai sem mudança.
+Para agentes de terminal, o menu de permissão é detectado por `detectAgentPermission` e `parseApprovalFromStatus`, que o mobile já usa nas respostas de permissão.
+O celular não lê a tela da CLI por conta própria, então a regra não depende de uma transcrição por CLI.
 
 ## 7. Painel visual (fase 2)
 
@@ -265,9 +264,9 @@ Para um agente que não está bloqueado, o texto vai como instrução nova pelo 
 | Situação | O que o carro diz |
 |---|---|
 | O prompt mudou ou o agente seguiu | "The agent already moved on; reply discarded" |
-| Host SSH sem contato | "No contact with the host; can't tell if the agent is alive", com o veredito `unverifiable` |
-| Host remoto sem contato ao responder | "Reply not sent", porque este método ainda não tem o código de recusa `unverifiable`, e nunca se afirma que o agente morreu |
-| Processo encerrado | "Agent exited", só com o veredito `exited` |
+| Aviso sobre host SSH sem contato | "No contact with the host; can't tell if the agent is alive", com o veredito `unverifiable` |
+| Resposta a um host remoto sem contato | "Reply not sent", porque este método ainda não tem o código de recusa `unverifiable`, e nunca se afirma que o agente morreu |
+| Aviso de processo encerrado | "Agent exited", só com o veredito `exited` |
 | Resposta que não vira opção do menu | "Say the option number, or yes or no", e o prompt continua pendente |
 | Terminal bloqueado por outro cliente | "Reply not sent", a partir da recusa `terminal-locked` |
 | Desktop sem o método novo | Aviso sem a ação de responder e a mensagem única "Update Orca desktop to reply from the car" |
@@ -293,10 +292,10 @@ Os eventos da sessão de carro entram no `connection-log` sem o texto das respos
 | Unidade | O que testar |
 |---|---|
 | `car-agent-summary` | Resumo por estado, tradução de `toolName`, corte em 60 caracteres e fallback |
-| `car-reply-normalization` | Conversão de palavras em números só com opções numeradas, limite de 500 caracteres e deduplicação |
+| `car-reply-normalization` | Com menu detectado, só respostas que mapeiam para opção seguem, "não" só para opção deny ou no, e as demais recebem "Say the option number, or yes or no"; sem menu, texto sem mudança com Enter; limite de 500 caracteres e deduplicação |
 | `car-snapshot` | Vagas fixas, vaga "livre", hash estável e histórico de 30 minutos |
 | `CarConversationStore` | Conversa estável por agente, histórico da sessão e limpeza no fim |
-| `ReplyRouter` | Escolha do método, ausência de "Responder" sem suporte, menu de permissão com resposta inválida, deduplicação com nova tentativa após falha transitória e mensagens de `unverifiable` e `exited` |
+| `ReplyRouter` | Escolha do método, ausência de "Responder" sem suporte, menu de permissão com resposta inválida, deduplicação com nova tentativa após falha transitória e "Reply not sent" para host sem contato e o aviso `exited` |
 | Ciclo da sessão | Transições de estado, tolerância de 60 segundos e exceção ao fechamento por segundo plano |
 
 ### Desktop (vitest, `pnpm test`)

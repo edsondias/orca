@@ -13,7 +13,7 @@ O alvo inicial é o C4 Cactus Shine 2019 do usuário, com o app instalado fora d
 
 | Feature | Fase | Entrega |
 |---|---|---|
-| [FT-01](../features/FT-01-notificacoes-no-carro.md) | 1 | Avisos de agente bloqueado, pronto ou encerrado, com resposta por voz, eco e recibo |
+| [FT-01](../features/FT-01-notificacoes-no-carro.md) | 1 | Avisos de agente bloqueado, pronto ou encerrado, com resposta por voz, eco e recibo, inclusive a sessões estruturadas na [ST-06b](../stories/ST-06b-resposta-a-sessoes-estruturadas.md) |
 | [FT-02](../features/FT-02-painel-visual.md) | 2 | Painel em abas com grade, placar e linha do tempo |
 | [FT-03](../features/FT-03-ditado-pelo-painel.md) | 3 | Tocar num agente do painel e ditar uma instrução nova |
 

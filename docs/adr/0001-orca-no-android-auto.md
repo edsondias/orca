@@ -19,7 +19,7 @@ No carro, o celular fica no 4G, fora da rede de casa, e o pareamento atual é po
 2. As fases 2 e 3 usam a Car App Library na categoria `MESSAGING`.
    O painel visual usa `TabTemplate` com imagens geradas no celular, e o ditado usa `ConversationItem`.
 3. Os eventos chegam ao carro por uma sessão de carro ao vivo, e não pelo push do gateway.
-   Enquanto o Android Auto estiver conectado, um serviço em primeiro plano mantém as assinaturas `notifications.subscribe` e `worktree.ps` pelo Tailscale.
+   Enquanto o Android Auto estiver conectado, um serviço em primeiro plano mantém a assinatura `notifications.subscribe` pelo Tailscale, e o `worktree.ps` entra na fase 2.
 4. A guarda contra resposta atrasada fica no host.
    Sessões estruturadas usam o `expectedRevision` que já existe, e agentes de terminal usam o método novo `terminal.replyToAgentPrompt` com a guarda `TerminalAgentPromptFence`, que vai além da `permissionSequence`.
 5. As mudanças no que o desktop publica são só campos opcionais e aditivos.
