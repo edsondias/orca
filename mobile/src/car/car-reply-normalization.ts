@@ -9,18 +9,18 @@ export type CarReplyKeystroke = { text: string; enter: boolean; label: string }
 export const CAR_REPLY_MAX_LENGTH = 500
 export const CAR_REPLY_DEDUPE_MS = 30_000
 
-const NUMBER_WORDS: Record<string, number> = {
-  um: 1,
-  uma: 1,
-  one: 1,
-  dois: 2,
-  duas: 2,
-  two: 2,
-  tres: 3,
-  three: 3,
-  quatro: 4,
-  four: 4
-}
+const NUMBER_WORDS = new Map<string, number>([
+  ['um', 1],
+  ['uma', 1],
+  ['one', 1],
+  ['dois', 2],
+  ['duas', 2],
+  ['two', 2],
+  ['tres', 3],
+  ['three', 3],
+  ['quatro', 4],
+  ['four', 4]
+])
 const YES_WORDS = new Set(['sim', 'yes', 'pode', 'allow', 'aprovar'])
 const NO_WORDS = new Set(['nao', 'no', 'deny', 'negar'])
 
@@ -55,33 +55,42 @@ export function normalizeCarReply(
   if (!trimmed || trimmed.length > CAR_REPLY_MAX_LENGTH) {
     return null
   }
-  const verbatim = { text: trimmed, enter: true, label: trimmed }
   if (!permission) {
-    return verbatim
+    return { text: trimmed, enter: true, label: trimmed }
   }
   const token = spokenToken(trimmed)
-  const index = /^\d+$/.test(token) ? Number(token) : NUMBER_WORDS[token]
-  if (index !== undefined) {
+  const index = /^\d+$/.test(token) ? Number(token) : NUMBER_WORDS.get(token)
+  if (index !== undefined && index > 0) {
     const option = permission.options[index - 1]
-    return option ? { text: option.send, enter: false, label: option.label } : verbatim
+    if (option) {
+      return { text: option.send, enter: false, label: option.label }
+    }
   }
   if (YES_WORDS.has(token)) {
     const option = permission.options[0]
-    return option ? { text: option.send, enter: false, label: option.label } : verbatim
+    if (option) {
+      return { text: option.send, enter: false, label: option.label }
+    }
   }
   if (NO_WORDS.has(token)) {
-    const option =
-      permission.options.find((candidate) => /deny|no\b/i.test(candidate.label)) ??
-      permission.options.at(-1)
-    return option ? { text: option.send, enter: false, label: option.label } : verbatim
+    const option = permission.options.find((candidate) => /\b(deny|no)\b/i.test(candidate.label))
+    if (option) {
+      return { text: option.send, enter: false, label: option.label }
+    }
   }
-  return verbatim
+  return null
 }
 
 export function createCarReplyDeduplicator(now: () => number): (key: string) => boolean {
   const seen = new Map<string, number>()
   return (key) => {
     const at = now()
+    const cutoff = at - CAR_REPLY_DEDUPE_MS
+    for (const [k, t] of seen) {
+      if (t < cutoff) {
+        seen.delete(k)
+      }
+    }
     const previous = seen.get(key)
     if (previous !== undefined && at - previous < CAR_REPLY_DEDUPE_MS) {
       return false

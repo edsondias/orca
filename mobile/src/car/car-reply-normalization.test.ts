@@ -17,6 +17,12 @@ const approval = carPermissionOptions(
   { interactivePrompt: JSON.stringify({ approval: { tool: 'Bash', summary: 'pnpm test' } }) },
   'blocked'
 )
+const noDeny = carPermissionOptions(
+  {
+    lastAssistantMessage: "Do you want to proceed?\n1. Yes\n2. Yes, and don't ask again"
+  },
+  'blocked'
+)
 
 describe('normalizeCarReply', () => {
   it('maps a spoken number word to that option key without Enter', () => {
@@ -34,16 +40,36 @@ describe('normalizeCarReply', () => {
     expect(normalizeCarReply('não', approval)).toMatchObject({ enter: false, label: 'Deny' })
   })
 
-  it('sends anything else verbatim with Enter', () => {
-    expect(normalizeCarReply('um teste rápido', numbered)).toEqual({
-      text: 'um teste rápido',
-      enter: true,
-      label: 'um teste rápido'
+  it('maps sim and não on a numbered menu', () => {
+    expect(normalizeCarReply('sim', numbered)).toMatchObject({
+      text: '1',
+      enter: false,
+      label: 'Yes'
     })
+    expect(normalizeCarReply('não', numbered)).toMatchObject({
+      text: '3',
+      enter: false,
+      label: 'No, and tell Claude'
+    })
+  })
+
+  it('rejects out-of-range numbers and invalid speech when a menu is pending', () => {
+    expect(normalizeCarReply('três', approval)).toBeNull()
+    expect(normalizeCarReply('0', numbered)).toBeNull()
+    expect(normalizeCarReply('um teste rápido', numbered)).toBeNull()
+  })
+
+  it('rejects no-word when no deny option exists', () => {
+    expect(normalizeCarReply('não', noDeny)).toBeNull()
   })
 
   it('sends verbatim when there is no option menu', () => {
     expect(normalizeCarReply('um', null)).toEqual({ text: 'um', enter: true, label: 'um' })
+    expect(normalizeCarReply('um teste rápido', null)).toEqual({
+      text: 'um teste rápido',
+      enter: true,
+      label: 'um teste rápido'
+    })
   })
 
   it('refuses an empty or oversized reply', () => {
