@@ -14,15 +14,16 @@ class OrcaCarSessionService : Service() {
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
     CarNotificationPublisher(this).ensureChannel()
-    val notification = NotificationCompat.Builder(this, CAR_CHANNEL_ID)
-      .setSmallIcon(applicationInfo.icon)
+    val notification = NotificationCompat.Builder(this, SESSION_CHANNEL_ID)
+      .setSmallIcon(carSmallIcon(this))
       .setContentTitle("Orca in the car")
       .setOngoing(true)
       .setSilent(true)
       .build()
     val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE else 0
     ServiceCompat.startForeground(this, ONGOING_NOTIFICATION_ID, notification, type)
-    return START_STICKY
+    // A restarted service would have no JS runtime left to stop it, orphaning the notification.
+    return START_NOT_STICKY
   }
 
   companion object {

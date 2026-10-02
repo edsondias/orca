@@ -36,6 +36,19 @@ class CarConversationSpecTest {
   }
 
   @Test
+  fun `small icon falls back to the launcher icon only when no notification icon exists`() {
+    assertEquals(7, smallIconResource(notificationIconId = 7, launcherIconId = 9))
+    assertEquals(9, smallIconResource(notificationIconId = 0, launcherIconId = 9))
+  }
+
+  @Test
+  fun `session notification uses its own channel and the data scheme is fixed`() {
+    assertNotEquals(CAR_CHANNEL_ID, SESSION_CHANNEL_ID)
+    assertEquals("orca-car", CAR_DATA_SCHEME)
+    assertEquals("notification_icon", NOTIFICATION_ICON_RESOURCE)
+  }
+
+  @Test
   fun `notification id is stable per conversation`() {
     assertEquals(conversationNotificationId("agent-a"), conversationNotificationId("agent-a"))
   }

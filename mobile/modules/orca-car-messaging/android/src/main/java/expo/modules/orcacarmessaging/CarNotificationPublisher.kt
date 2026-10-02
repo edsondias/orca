@@ -5,6 +5,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -14,13 +15,21 @@ import androidx.core.app.RemoteInput
 data class CarMessageData(val sender: String, val text: String, val timestamp: Long)
 data class CarConversationData(val id: String, val title: String, val messages: List<CarMessageData>, val canReply: Boolean)
 
+internal fun carSmallIcon(context: Context): Int {
+  val monochrome = context.resources.getIdentifier(NOTIFICATION_ICON_RESOURCE, "drawable", context.packageName)
+  return smallIconResource(monochrome, context.applicationInfo.icon)
+}
+
 class CarNotificationPublisher(private val context: Context) {
   private val me = Person.Builder().setName("Me").setKey("me").build()
 
   fun ensureChannel() {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      val channel = NotificationChannel(CAR_CHANNEL_ID, "Orca in the car", NotificationManager.IMPORTANCE_HIGH)
-      context.getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+      val manager = context.getSystemService(NotificationManager::class.java)
+      manager.createNotificationChannel(NotificationChannel(CAR_CHANNEL_ID, "Orca in the car", NotificationManager.IMPORTANCE_HIGH))
+      manager.createNotificationChannel(
+        NotificationChannel(SESSION_CHANNEL_ID, "Orca car session", NotificationManager.IMPORTANCE_LOW)
+      )
     }
   }
 
@@ -33,7 +42,7 @@ class CarNotificationPublisher(private val context: Context) {
       style.addMessage(NotificationCompat.MessagingStyle.Message(message.text, message.timestamp, sender))
     }
     val builder = NotificationCompat.Builder(context, CAR_CHANNEL_ID)
-      .setSmallIcon(context.applicationInfo.icon)
+      .setSmallIcon(carSmallIcon(context))
       .setStyle(style)
       .setGroup(CAR_GROUP)
       .setCategory(NotificationCompat.CATEGORY_MESSAGE)
@@ -51,8 +60,12 @@ class CarNotificationPublisher(private val context: Context) {
     conversationIds.forEach { manager.cancel(conversationNotificationId(it)) }
   }
 
+  // The data URI makes Intent.filterEquals differ per conversation even if two request codes collide.
   private fun receiverIntent(action: String, conversationId: String) =
-    Intent(context, CarReplyReceiver::class.java).setAction(action).putExtra(CarReplyReceiver.EXTRA_CONVERSATION_ID, conversationId)
+    Intent(context, CarReplyReceiver::class.java)
+      .setAction(action)
+      .setData(Uri.fromParts(CAR_DATA_SCHEME, conversationId, null))
+      .putExtra(CarReplyReceiver.EXTRA_CONVERSATION_ID, conversationId)
 
   private fun replyAction(conversationId: String): NotificationCompat.Action {
     val pending = PendingIntent.getBroadcast(

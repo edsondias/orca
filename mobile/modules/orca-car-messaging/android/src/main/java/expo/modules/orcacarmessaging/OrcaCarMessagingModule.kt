@@ -4,15 +4,16 @@ import android.content.Intent
 import androidx.car.app.connection.CarConnection
 import androidx.core.content.ContextCompat
 import androidx.core.os.bundleOf
+import androidx.lifecycle.LiveData
 import androidx.lifecycle.Observer
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import java.lang.ref.WeakReference
-import kotlinx.coroutines.launch
 
 class OrcaCarMessagingModule : Module() {
   private val published = mutableSetOf<String>()
-  private var connection: CarConnection? = null
+  private var projectionSource: LiveData<Int>? = null
+  @Volatile private var destroyed = false
   private val projectionObserver = Observer<Int> { type ->
     sendEvent(ON_PROJECTION, bundleOf("projecting" to (type == CarConnection.CONNECTION_TYPE_PROJECTION)))
   }
@@ -23,14 +24,24 @@ class OrcaCarMessagingModule : Module() {
 
     OnCreate {
       active = WeakReference(this@OrcaCarMessagingModule)
-      val context = requireNotNull(appContext.reactContext)
-      appContext.mainQueue.launch {
-        connection = CarConnection(context).also { it.type.observeForever(projectionObserver) }
+      val context = requireNotNull(appContext.reactContext).applicationContext
+      // The module scope dies with the AppContext, so observer registration runs on the main executor instead.
+      ContextCompat.getMainExecutor(context).execute {
+        if (destroyed) return@execute
+        val source = CarConnection(context).type
+        source.observeForever(projectionObserver)
+        projectionSource = source
       }
     }
 
     OnDestroy {
-      appContext.mainQueue.launch { connection?.type?.removeObserver(projectionObserver) }
+      destroyed = true
+      if (active?.get() === this@OrcaCarMessagingModule) active = null
+      val context = appContext.reactContext?.applicationContext ?: return@OnDestroy
+      ContextCompat.getMainExecutor(context).execute {
+        projectionSource?.removeObserver(projectionObserver)
+        projectionSource = null
+      }
     }
 
     AsyncFunction("startSession") {
@@ -75,14 +86,19 @@ class OrcaCarMessagingModule : Module() {
     private const val ON_REPLY = "onCarReply"
     private const val ON_MARK_READ = "onCarMarkRead"
     private const val ON_PROJECTION = "onProjectionChanged"
-    private var active: WeakReference<OrcaCarMessagingModule>? = null
+    @Volatile private var active: WeakReference<OrcaCarMessagingModule>? = null
 
-    fun emitReply(conversationId: String, text: String) {
-      active?.get()?.sendEvent(ON_REPLY, bundleOf("conversationId" to conversationId, "text" to text))
+    // Returns false when no live module exists so the receiver can drop and log.
+    fun emitReply(conversationId: String, text: String): Boolean {
+      val module = active?.get() ?: return false
+      module.sendEvent(ON_REPLY, bundleOf("conversationId" to conversationId, "text" to text))
+      return true
     }
 
-    fun emitMarkRead(conversationId: String) {
-      active?.get()?.sendEvent(ON_MARK_READ, bundleOf("conversationId" to conversationId))
+    fun emitMarkRead(conversationId: String): Boolean {
+      val module = active?.get() ?: return false
+      module.sendEvent(ON_MARK_READ, bundleOf("conversationId" to conversationId))
+      return true
     }
   }
 }

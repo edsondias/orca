@@ -7,6 +7,13 @@ data class CarActionSpec(val kind: CarActionKind, val remoteInputCount: Int, val
 const val REMOTE_INPUT_KEY = "orca_car_reply"
 const val CAR_CHANNEL_ID = "orca-car"
 const val CAR_GROUP = "orca-car-conversations"
+const val SESSION_CHANNEL_ID = "orca-car-session"
+const val CAR_DATA_SCHEME = "orca-car"
+const val NOTIFICATION_ICON_RESOURCE = "notification_icon"
+
+// The launcher icon is adaptive and renders as a blob in the status bar; use it only when no monochrome icon exists.
+internal fun smallIconResource(notificationIconId: Int, launcherIconId: Int): Int =
+  if (notificationIconId != 0) notificationIconId else launcherIconId
 
 internal fun carActionSpecs(canReply: Boolean): List<CarActionSpec> = buildList {
   if (canReply) add(CarActionSpec(CarActionKind.REPLY, remoteInputCount = 1, showsUserInterface = false))
