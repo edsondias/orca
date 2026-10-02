@@ -103,10 +103,13 @@ A partir da fase 2, o usuário toca no ícone do Orca na tela do carro, e o Andr
 O módulo nativo sobe um serviço em primeiro plano com uma notificação fixa, num canal próprio de importância baixa e com o ícone pequeno de notificação do app.
 O serviço só é iniciado com o app em primeiro plano.
 Se o Android recusar o início, como acontece a partir do Android 12 em segundo plano, a sessão não começa.
+Nesse caso o app tenta de novo quando volta ao primeiro plano, e a tela do Modo carro mostra o motivo.
 O tipo do serviço é `connectedDevice`, com `specialUse` como alternativa se o Android recusar o tipo.
 O JS recebe `carSessionActive=true`.
 Enquanto a sessão estiver ativa, o supervisor de conexão não aplica o fechamento por segundo plano (`RELAY_BACKGROUND_GRACE_MS` e a política equivalente da conexão direta).
 Fica viva a assinatura `notifications.subscribe`, com reposição por `notifications.getMissedSince` ao reconectar.
+O carro guarda por host a última `notificationSeq` e a `epoch` recebidas e, a cada nova assinatura depois da primeira, pede os eventos perdidos com `includeDesktopSuppressed: true`.
+Os eventos repostos entram em ordem, antes dos eventos ao vivo, e a `notificationSeq` descarta os repetidos.
 A fase 1 não usa `worktree.ps`, que entra com o painel na fase 2.
 O serviço em primeiro plano mantém o processo vivo, e a partida a frio, sem o app aberto, fica para a fase 2.
 
@@ -142,13 +145,13 @@ Todos os campos são opcionais e aditivos, então clientes antigos os ignoram.
 A `fence` do terminal é `{ generation, permissionSequence, blockedSince, promptKey }`.
 O `promptKey` são os 16 primeiros caracteres hexadecimais do sha256 de `toolName`, `toolInput` e `interactivePrompt` da linha de hook recente, porque o hook mantém o `stateStartedAt` entre prompts bloqueados seguidos.
 O `lastAssistantMessage` vai com até 4000 caracteres.
-O `promptRef` só é anexado a avisos de bloqueio, e uma falha ao montá-lo nunca suprime a notificação.
+O `promptRef` só é anexado a avisos com o agente em `blocked` ou `waiting`, e uma falha ao montá-lo nunca suprime a notificação.
 O `promptRef` estruturado leva só o `sessionId`, e na fase 1 as sessões estruturadas avisam no carro sem a ação de responder, que fica para a story ST-06b.
 
 O aviso `agent-exited` não vai por push, porque o gateway só aceita as fontes de `MOBILE_PUSH_SOURCES`.
 Ele é publicado com `desktopAllowed: false`, então só a sessão de carro, que assina com `includeDesktopSuppressed`, o recebe, e os celulares antigos não.
 Ele é anunciado só com o veredito `exited`, ou quando não há veredito de presença e a leitura em primeiro plano respondeu, e nunca com `unverifiable` ou `live`.
-No carro ele aparece como uma conversa própria, "Agent exited", separada da conversa do agente.
+No carro ele aparece como uma conversa própria, separada da conversa do agente, com o título "Agent exited in" seguido do nome do workspace ou, sem ele, do título do terminal.
 Um cliente antigo que receba um `source` desconhecido precisa tratá-lo como notificação genérica.
 O teste de compatibilidade da story ST-01 cobre esse caso.
 
@@ -163,7 +166,10 @@ O teste de compatibilidade da story ST-01 cobre esse caso.
 7. Se o host recusar porque o prompt mudou, nada é escrito e entra a mensagem "The agent already moved on; reply discarded".
 
 Teclas de opção vão com `enter: false`, como as respostas de permissão que o celular já envia.
-O método aceita um `client` opcional, com o mesmo esquema do `terminal.send`, e aplica o mesmo bloqueio de entrada por cliente e o mesmo piso de entrada do mobile.
+O método aceita um `client` opcional, com o mesmo esquema do `terminal.send`, e aplica o mesmo bloqueio de entrada por cliente.
+O piso de entrada do mobile só é tomado quando o cliente assina aquele terminal por `terminal.subscribe`.
+O carro não assina terminais, então a resposta dele é escrita sem tomar o piso.
+O `terminal.send` continua exigindo o piso, sem mudança.
 Um terminal bloqueado responde `terminal-locked`.
 Se o texto foi escrito mas o Enter foi retido porque o prompt mudou, o host responde `prompt-changed-after-text`.
 
@@ -189,14 +195,26 @@ O carro nunca cai para o `terminal.send` sem guarda.
 
 ## 6. Normalização da voz
 
-A normalização reaproveita `detectAgentPermission` e `parseApprovalFromStatus` do mobile.
+A normalização reaproveita `parseApprovalFromStatus` e `detectAgentPermission` do mobile.
+O envelope de aprovação do `interactivePrompt` tem precedência sobre a leitura da mensagem.
+Sem envelope, `detectAgentPermission` só lê o último bloco numerado da mensagem, junto com a linha da pergunta logo antes dele.
+Esse bloco precisa ter ao menos duas opções, numeradas de 1 em diante e em ordem, e a primeira precisa ser de aprovação, como "Yes" ou "Allow".
+Uma lista em prosa antes do menu nunca vira menu.
 Com um menu de permissão detectado, só seguem as respostas que mapeiam para uma opção: número, "yes" ou "sim", "no" ou "não".
 Qualquer outra resposta recebe "Say the option number, or yes or no", e o prompt continua pendente.
-"Não" só mapeia para uma opção rotulada como deny ou no, e sem ela nada é enviado.
-Sem menu detectado, o texto ditado vai sem mudança, com Enter.
+"Não" só mapeia para uma opção cujo rótulo começa com "No" ou "Deny", e sem ela nada é enviado.
+Sem menu detectado, nada é enviado pelo carro.
+Na fase 1 não há texto livre com Enter, porque todo prompt que o carro responde é de permissão e o Enter poderia confirmar a opção destacada.
+O carro publica esse prompt só para leitura, com a mensagem "Reply to this one from your phone".
 O limite é de 500 caracteres.
 Uma entrega repetida pelo Android Auto é descartada por 30 segundos, pela chave `(conversa, sequência, texto)`.
+Uma entrega repetida que chega depois de uma resposta já enviada também é descartada em silêncio, sem o aviso "already moved on".
 Uma resposta que falhou por causa transitória pode ser tentada de novo na hora.
+
+O carro lê o assunto da permissão, tirado da mesma linha de hook que a `fence`.
+Com o envelope, ele lê "Allow", o nome da ferramenta e o resumo do comando.
+Sem envelope, ele lê a pergunta e as opções do menu detectado.
+Ele nunca lê o corpo genérico da notificação, que costuma trazer a última fala do agente e pode descrever outro prompt.
 
 Para sessões estruturadas, a ST-06b lê as opções do item pendente por `agentSession.history`.
 Para agentes de terminal, o menu de permissão é detectado por `detectAgentPermission` e `parseApprovalFromStatus`, que o mobile já usa nas respostas de permissão.
@@ -268,10 +286,12 @@ Para um agente que não está bloqueado, o texto vai como instrução nova pelo 
 | Resposta a um host remoto sem contato | "Reply not sent", porque este método ainda não tem o código de recusa `unverifiable`, e nunca se afirma que o agente morreu |
 | Aviso de processo encerrado | "Agent exited", só com o veredito `exited` |
 | Resposta que não vira opção do menu | "Say the option number, or yes or no", e o prompt continua pendente |
-| Terminal bloqueado por outro cliente | "Reply not sent", a partir da recusa `terminal-locked` |
+| Prompt bloqueado sem menu reconhecido | Conversa só para leitura com "Reply to this one from your phone", e nada é enviado |
+| Terminal bloqueado por outro cliente | "Reply not sent", a partir da recusa `terminal-locked`, que hoje não acontece para o carro porque um cliente mobile nunca fica bloqueado |
 | Desktop sem o método novo | Aviso sem a ação de responder e a mensagem única "Update Orca desktop to reply from the car" |
 | Conexão caída por mais de 60 segundos | Uma única mensagem "No connection to the desktop", que some ao reconectar |
 | Permissão de notificação negada | A sessão não começa e o app mostra o motivo |
+| Início do serviço recusado em segundo plano | A sessão não começa, o app tenta de novo ao voltar ao primeiro plano e a tela do Modo carro pede para abrir o Orca com o carro conectado |
 
 Os textos do carro estão em inglês em `mobile/src/car/car-copy.ts`, porque o mobile não tem i18n.
 Respostas não ficam em fila durante uma queda de conexão, porque uma aprovação atrasada é perigosa.
@@ -292,16 +312,18 @@ Os eventos da sessão de carro entram no `connection-log` sem o texto das respos
 | Unidade | O que testar |
 |---|---|
 | `car-agent-summary` | Resumo por estado, tradução de `toolName`, corte em 60 caracteres e fallback |
-| `car-reply-normalization` | Com menu detectado, só respostas que mapeiam para opção seguem, "não" só para opção deny ou no, e as demais recebem "Say the option number, or yes or no"; sem menu, texto sem mudança com Enter; limite de 500 caracteres e deduplicação |
+| `car-reply-normalization` | Envelope de aprovação antes da mensagem, só o último bloco numerado vira menu, lista em prosa antes do menu ignorada, "não" só para opção que começa com "No" ou "Deny", demais respostas com "Say the option number, or yes or no", sem menu nada é enviado, limite de 500 caracteres e deduplicação |
 | `car-snapshot` | Vagas fixas, vaga "livre", hash estável e histórico de 30 minutos |
-| `CarConversationStore` | Conversa estável por agente, histórico da sessão e limpeza no fim |
+| `CarConversationStore` | Conversa estável por agente, leitura do assunto da permissão e nunca do corpo, prompt sem menu só para leitura, histórico da sessão e limpeza no fim |
+| `car-notification-catch-up` | Nenhuma reposição na primeira assinatura, reposição em ordem antes dos eventos ao vivo, descarte por `notificationSeq`, nova `epoch` aceita e eventos ao vivo entregues mesmo se a reposição falhar |
 | `ReplyRouter` | Escolha do método, ausência de "Responder" sem suporte, menu de permissão com resposta inválida, deduplicação com nova tentativa após falha transitória e "Reply not sent" para host sem contato e o aviso `exited` |
-| Ciclo da sessão | Transições de estado, tolerância de 60 segundos e exceção ao fechamento por segundo plano |
+| Ciclo da sessão | Transições de estado, tolerância de 60 segundos, exceção ao fechamento por segundo plano e nova tentativa de início ao voltar ao primeiro plano depois de uma recusa |
 
 ### Desktop (vitest, `pnpm test`)
 
 `terminal.replyToAgentPrompt` escreve quando a `fence` bate, recusa quando ela mudou (inclusive com `promptKey` diferente e após respawn) e funciona num painel de host SSH.
 O método responde `prompt-changed-after-text` e `terminal-locked` nos casos descritos na seção 5.
+Com o runtime real, um cliente mobile que não assina o terminal tem a resposta escrita sem tomar o piso de entrada.
 O aviso `agent-exited` só é publicado com o veredito `exited`, e com `desktopAllowed: false`.
 Os campos opcionais novos do evento são ignorados por um cliente antigo.
 O método novo está no allowlist do mobile.

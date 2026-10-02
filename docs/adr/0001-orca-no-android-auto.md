@@ -47,6 +47,10 @@ A Car App Library com `ConversationItem` está em beta e só seria publicável n
 O limite de 5 telas por tarefa pode fechar o painel quando agentes entram e saem.
 A story ST-08 prova o desenho de vagas fixas no DHU antes de o painel ser construído.
 Os testes Kotlin e o DHU ficam fora do CI, porque o CI do mobile não roda Gradle.
+O "Modo carro (Car mode)" ligado mantém uma conexão com os desktops e uma notificação ativas até ser desligado.
+Esse custo de bateria é aceito na fase 1, que não desliga o modo sozinha.
+A tela do Modo carro deixa esse custo explícito.
+Na fase 1 o carro não envia texto livre, e um prompt sem menu reconhecido fica só para leitura.
 
 ## Riscos aceitos
 

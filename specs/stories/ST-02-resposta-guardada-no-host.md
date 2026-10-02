@@ -16,7 +16,8 @@ Se a `fence` ainda valer, o host escreve o texto no PTY, com Enter só quando `e
 Teclas de opção vão com `enter: false`, como as respostas de permissão que o celular já envia.
 Se a `fence` não valer, o host não escreve nada e responde `{ delivered: false, reason: 'prompt-changed' }`.
 Se o texto foi escrito mas o Enter foi retido porque o prompt mudou, a resposta é `prompt-changed-after-text`.
-O método aceita um `client` opcional, com o mesmo esquema do `terminal.send`, e aplica o mesmo bloqueio de entrada por cliente e o mesmo piso de entrada do mobile, e um terminal bloqueado responde `terminal-locked`.
+O método aceita um `client` opcional, com o mesmo esquema do `terminal.send`, e aplica o mesmo bloqueio de entrada por cliente, e um terminal bloqueado responde `terminal-locked`.
+O piso de entrada do mobile só é tomado quando o cliente assina aquele terminal, então o carro, que não assina terminais, escreve sem tomar o piso.
 Incluir o método no allowlist do mobile em `runtime-rpc-mobile-method-allowlist.ts`.
 Reaproveitar a escrita de prompt que já existe em `orca-runtime-write-terminal-agent-prompt.ts` em vez de criar uma nova.
 
