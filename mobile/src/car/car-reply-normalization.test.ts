@@ -96,4 +96,17 @@ describe('createCarReplyDeduplicator', () => {
     now += CAR_REPLY_DEDUPE_MS
     expect(accept('agent-a|5|1')).toBe(true)
   })
+
+  it('supports record() to persist a delivered key and forget() to release in-flight', () => {
+    let now = 0
+    const accept = createCarReplyDeduplicator(() => now)
+    expect(accept('key1')).toBe(true) // in flight
+    expect(accept('key1')).toBe(false) // concurrent identical blocked
+    accept.forget('key1') // release on transient error
+    expect(accept('key1')).toBe(true) // retry allowed
+    accept.record('key1') // record on success
+    expect(accept('key1')).toBe(false) // permanently blocked for 30s
+    now += CAR_REPLY_DEDUPE_MS
+    expect(accept('key1')).toBe(true) // expired after 30s
+  })
 })

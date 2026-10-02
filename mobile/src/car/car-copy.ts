@@ -7,5 +7,6 @@ export const CAR_COPY = {
   desktopTooOld: 'Update Orca desktop to reply from the car',
   replyFromPhone: 'Reply to this one from your phone',
   disconnected: 'No connection to the desktop',
-  replyRejected: 'Reply not sent'
+  replyRejected: 'Reply not sent',
+  chooseOption: 'Say the option number, or yes or no'
 } as const

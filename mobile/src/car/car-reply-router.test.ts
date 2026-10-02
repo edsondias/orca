@@ -61,4 +61,59 @@ describe('car reply router', () => {
     expect((await router.reply('c1', prompt, 'um')).kind).toBe('duplicate')
     expect(send).toHaveBeenCalledTimes(1)
   })
+
+  it('allows retry of a failed send (transient error releases dedupe key)', async () => {
+    const send = vi.fn()
+    send.mockResolvedValueOnce('disconnected')
+    send.mockResolvedValueOnce('delivered')
+    const router = createCarReplyRouter({ send, now: () => 0 })
+    expect((await router.reply('c1', prompt, 'um')).kind).toBe('rejected')
+    expect((await router.reply('c1', prompt, 'um')).kind).toBe('delivered')
+    expect(send).toHaveBeenCalledTimes(2)
+  })
+
+  it('blocks concurrent identical replies while first is pending', async () => {
+    let resolve: () => void
+    const send = vi.fn(
+      () =>
+        new Promise<'delivered'>((r) => {
+          resolve = () => r('delivered')
+        })
+    )
+    const router = createCarReplyRouter({ send, now: () => 0 })
+    const first = router.reply('c1', prompt, 'um')
+    const second = router.reply('c1', prompt, 'um')
+    resolve!()
+    const [f, s] = await Promise.all([first, second])
+    expect(f.kind).toBe('delivered')
+    expect(s.kind).toBe('duplicate')
+    expect(send).toHaveBeenCalledTimes(1)
+  })
+
+  it('rejects non-option speech with menu pending', async () => {
+    const send = vi.fn()
+    const outcome = await createCarReplyRouter({ send, now: () => 0 }).reply(
+      'c1',
+      prompt,
+      'um teste rápido'
+    )
+    expect(outcome.kind).toBe('not-an-option')
+    expect(carReplyReceipt(outcome)).toBe('Say the option number, or yes or no')
+    expect(send).not.toHaveBeenCalled()
+  })
+
+  it('handles failed send (maps to rejected)', async () => {
+    const send = vi.fn().mockResolvedValue('failed')
+    const outcome = await createCarReplyRouter({ send, now: () => 0 }).reply('c1', prompt, 'um')
+    expect(outcome.kind).toBe('rejected')
+    expect(carReplyReceipt(outcome)).toBe('Reply not sent')
+  })
+
+  it('sets isHostUnsupported after method-not-found', async () => {
+    const send = vi.fn().mockResolvedValue('method-not-found')
+    const router = createCarReplyRouter({ send, now: () => 0 })
+    expect(router.isHostUnsupported('h1')).toBe(false)
+    await router.reply('c1', prompt, 'um')
+    expect(router.isHostUnsupported('h1')).toBe(true)
+  })
 })

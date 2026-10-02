@@ -81,21 +81,54 @@ export function normalizeCarReply(
   return null
 }
 
-export function createCarReplyDeduplicator(now: () => number): (key: string) => boolean {
-  const seen = new Map<string, number>()
-  return (key) => {
+export function createCarReplyDeduplicator(now: () => number): ((key: string) => boolean) & {
+  record(key: string): void
+  forget(key: string): void
+} {
+  const delivered = new Map<string, number>()
+  const inFlight = new Map<string, number>()
+
+  function accept(key: string): boolean {
     const at = now()
     const cutoff = at - CAR_REPLY_DEDUPE_MS
-    for (const [k, t] of seen) {
-      if (t < cutoff) {
-        seen.delete(k)
+
+    // clean expired delivered and in-flight keys (older than 30s)
+    for (const [k, t] of delivered) {
+      if (t <= cutoff) {
+        delivered.delete(k)
       }
     }
-    const previous = seen.get(key)
-    if (previous !== undefined && at - previous < CAR_REPLY_DEDUPE_MS) {
+    for (const [k, t] of inFlight) {
+      if (t <= cutoff) {
+        inFlight.delete(k)
+      }
+    }
+
+    // concurrent identical replies while first is pending
+    if (inFlight.has(key)) {
       return false
     }
-    seen.set(key, at)
+
+    // delivered recently, allow only after 30s
+    if (delivered.has(key)) {
+      return false
+    }
+
+    // mark as in-flight with timestamp (can be forgotten or recorded)
+    inFlight.set(key, at)
     return true
   }
+
+  function record(key: string): void {
+    inFlight.delete(key)
+    delivered.set(key, now())
+  }
+
+  function forget(key: string): void {
+    inFlight.delete(key)
+  }
+
+  accept.record = record
+  accept.forget = forget
+  return accept
 }

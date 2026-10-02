@@ -21,6 +21,7 @@ export type CarReplyOutcome =
   | { kind: 'unverifiable' }
   | { kind: 'rejected' }
   | { kind: 'duplicate' }
+  | { kind: 'not-an-option' }
 
 type Deps = {
   send(
@@ -46,9 +47,11 @@ export function createCarReplyRouter(deps: Deps) {
         carPermissionOptions(prompt.permission, prompt.agentState)
       )
       if (!keystroke) {
-        return { kind: 'rejected' }
+        return { kind: 'not-an-option' }
       }
-      if (!accept(`${conversationId}|${prompt.notificationSeq}|${keystroke.text}`)) {
+      // dedupe key: conversation | notification sequence | keystroke text (prevents duplicate sends and concurrent retries)
+      const dedupeKey = `${conversationId}|${prompt.notificationSeq}|${keystroke.text}`
+      if (!accept(dedupeKey)) {
         return { kind: 'duplicate' }
       }
       const result = await deps.send(prompt.hostId, {
@@ -59,15 +62,23 @@ export function createCarReplyRouter(deps: Deps) {
       })
       switch (result) {
         case 'delivered':
+          accept.record(dedupeKey)
           return { kind: 'delivered', label: keystroke.label }
         case 'prompt-changed':
+          accept.record(dedupeKey)
           return { kind: 'prompt-changed' }
         case 'method-not-found':
+          accept.forget(dedupeKey)
           unsupportedHosts.add(prompt.hostId)
           return { kind: 'unsupported' }
         case 'unverifiable':
+          accept.forget(dedupeKey)
           return { kind: 'unverifiable' }
+        case 'disconnected':
+          accept.forget(dedupeKey)
+          return { kind: 'rejected' }
         default:
+          accept.forget(dedupeKey)
           return { kind: 'rejected' }
       }
     }
@@ -88,5 +99,7 @@ export function carReplyReceipt(outcome: CarReplyOutcome): string | null {
       return CAR_COPY.replyRejected
     case 'duplicate':
       return null
+    case 'not-an-option':
+      return CAR_COPY.chooseOption
   }
 }
