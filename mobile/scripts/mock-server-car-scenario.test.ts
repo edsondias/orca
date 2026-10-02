@@ -9,7 +9,6 @@ describe('mock-server-car-scenario', () => {
   let responses: RpcResponse[]
 
   beforeEach(() => {
-    vi.clearAllMocks()
     vi.useFakeTimers()
     responses = []
     delete process.env.MOCK_CAR
@@ -121,7 +120,6 @@ describe('mock-server-car-scenario', () => {
 
   it('rejects reply with different fence', () => {
     process.env.MOCK_CAR = '1'
-    const _fence = { generation: 1, permissionSequence: 1, blockedSince: 1_000, promptKey: null }
     const differentFence = {
       generation: 2,
       permissionSequence: 1,
