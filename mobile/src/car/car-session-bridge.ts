@@ -53,6 +53,9 @@ export function createCarSessionBridge(deps: Deps) {
   let replyListener: { remove(): void } | null = null
   // Bumped by stop() so a start still awaiting the native service attaches nothing.
   let epoch = 0
+  // Until the native service is up, setHosts only records the latest list; start applies it.
+  let started = false
+  let latestHosts: CarBridgeHost[] = []
 
   const publish = (conversation: ReturnType<typeof conversations.applyEvent>) => {
     if (conversation) {
@@ -96,7 +99,10 @@ export function createCarSessionBridge(deps: Deps) {
       return
     }
     // The driver can answer again after speech that matched no option.
-    if (outcome.kind !== 'not-an-option') {
+    // A newer prompt for the same agent may have arrived while the reply was in flight; it stays pending.
+    const stillCurrent =
+      conversations.pendingPrompt(conversationId)?.notificationSeq === prompt.notificationSeq
+    if (outcome.kind !== 'not-an-option' && stillCurrent) {
       conversations.clearPendingPrompt(conversationId)
     }
     deps.log(
@@ -145,6 +151,10 @@ export function createCarSessionBridge(deps: Deps) {
   }
 
   const setHosts = (hosts: CarBridgeHost[]) => {
+    latestHosts = hosts
+    if (!started) {
+      return
+    }
     trackReachability(hosts.length)
     const wanted = new Map(hosts.map((host) => [host.hostId, host]))
     for (const [hostId, entry] of subscriptions) {
@@ -167,6 +177,7 @@ export function createCarSessionBridge(deps: Deps) {
   return {
     async start(hosts: CarBridgeHost[]): Promise<CarSessionStartResult> {
       const startEpoch = epoch
+      latestHosts = hosts
       if (!(await deps.canNotify())) {
         return 'no-notification-permission'
       }
@@ -188,12 +199,14 @@ export function createCarSessionBridge(deps: Deps) {
         return 'stopped'
       }
       replyListener = deps.messaging.addReplyListener((event) => void handleReply(event))
-      setHosts(hosts)
+      started = true
+      setHosts(latestHosts)
       return 'started'
     },
     setHosts,
     async stop() {
       epoch += 1
+      started = false
       if (disconnectedTimer) {
         clearTimeout(disconnectedTimer)
         disconnectedTimer = null

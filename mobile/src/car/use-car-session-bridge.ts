@@ -37,6 +37,14 @@ export function useCarSessionBridge(hosts: CarBridgeHost[]): void {
     }
   }, [])
 
+  useEffect(
+    () => () => {
+      void bridgeRef.current?.stop()
+      bridgeRef.current = null
+    },
+    []
+  )
+
   useEffect(() => {
     if (phase === 'inactive') {
       void bridgeRef.current?.stop()

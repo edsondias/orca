@@ -181,6 +181,58 @@ describe('car session bridge', () => {
     expect(h.deps.messaging.addReplyListener).not.toHaveBeenCalled()
   })
 
+  it('keeps a host recorded during a pending start subscribed after start resolves', async () => {
+    vi.useFakeTimers()
+    const h = harness()
+    let release: () => void = () => {}
+    h.deps.messaging.startSession.mockReturnValue(
+      new Promise<void>((resolve) => (release = resolve))
+    )
+    const unsubscribe = vi.fn()
+    h.deps.subscribe.mockReturnValue(unsubscribe)
+    const starting = h.bridge.start([])
+    await vi.waitFor(() => expect(h.deps.messaging.startSession).toHaveBeenCalled())
+    h.bridge.setHosts([fakeHost()])
+    expect(h.deps.subscribe).not.toHaveBeenCalled()
+    release()
+    await expect(starting).resolves.toBe('started')
+    vi.advanceTimersByTime(CAR_DISCONNECTED_NOTICE_MS * 2)
+    expect(h.deps.subscribe).toHaveBeenCalledTimes(1)
+    expect(unsubscribe).not.toHaveBeenCalled()
+    expect(h.published).toHaveLength(0)
+  })
+
+  it('leaves no subscription or notice timer after a failed start', async () => {
+    vi.useFakeTimers()
+    const h = harness()
+    h.deps.messaging.startSession.mockRejectedValue(new Error('refused'))
+    await expect(h.bridge.start([])).resolves.toBe('service-start-refused')
+    h.bridge.setHosts([])
+    vi.advanceTimersByTime(CAR_DISCONNECTED_NOTICE_MS * 2)
+    expect(h.deps.subscribe).not.toHaveBeenCalled()
+    expect(h.published).toHaveLength(0)
+  })
+
+  it('keeps a newer prompt pending when it arrives while the reply is in flight', async () => {
+    const h = harness()
+    let settle: (value: string) => void = () => {}
+    h.deps.send.mockReturnValue(new Promise<string>((resolve) => (settle = resolve)))
+    await h.bridge.start([fakeHost()])
+    h.emit(blocked)
+    await Promise.resolve()
+    const id = h.published.at(-1)!.id
+    h.reply({ conversationId: id, text: 'um' })
+    await vi.waitFor(() => expect(h.deps.send).toHaveBeenCalled())
+    h.emit({ ...blocked, notificationSeq: 8 })
+    settle('prompt-changed')
+    await vi.waitFor(() =>
+      expect(h.published.at(-1)?.messages.at(-1)?.text).toBe(
+        'The agent already moved on; reply discarded'
+      )
+    )
+    expect(h.published.at(-1)?.canReply).toBe(true)
+  })
+
   it('says once that the desktop is unreachable after 60 seconds, and only once', async () => {
     vi.useFakeTimers()
     const h = harness()
