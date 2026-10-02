@@ -57,6 +57,12 @@ export const RPC_SUBSCRIPTION_SITES: readonly RpcSubscriptionSite[] = [
       wall: 'Writes to a webview terminal/browser ref this runner has no substitute for, and a substitute that shaped what the stream delivered would be inventing the device.'
     }
   },
+  // The car session's own notification stream; mountable, no scenario written yet.
+  {
+    file: 'src/car/car-notification-stream.ts',
+    method: 'notifications.subscribe',
+    coverage: { kind: 'unwritten-scenario' }
+  },
   {
     file: 'src/notifications/mobile-notifications.ts',
     method: 'notifications.subscribe',
