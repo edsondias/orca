@@ -3,6 +3,9 @@ allowBuilds:
 
 minimumReleaseAge: 4320
 
+# Fork: the isolated layout's hashed .pnpm paths push CMake object paths past 260 chars on Windows.
+nodeLinker: hoisted
+
 overrides:
   xcode>uuid: 11.1.1
   query-string: 9.5.1
