@@ -4,6 +4,7 @@ import { createStableLogicalRpcClient } from './stable-logical-rpc-client'
 import type { ConnectionLogSink, HostProfile } from './types'
 import { directPathForEndpoint } from './mobile-direct-endpoint-probe'
 import { startMobileEndpointLifecycle } from './mobile-endpoint-lifecycle'
+import { carSessionStore, isCarSessionActive } from '../car/car-session-store'
 
 export function openHostLogicalClient(host: HostProfile, onLog: ConnectionLogSink): RpcClient {
   // Why: the stable facade owns app-visible RPC/subscription state while the
@@ -17,13 +18,16 @@ export function openHostLogicalClient(host: HostProfile, onLog: ConnectionLogSin
   }
 
   const endpointLifecycle = startMobileEndpointLifecycle(logical, host, onLog)
-  endpointLifecycle.setForeground(AppState.currentState === 'active')
-  const appStateSubscription = AppState.addEventListener('change', (state) => {
-    endpointLifecycle.setForeground(state === 'active')
-  })
+  const applyForeground = () =>
+    // The car session keeps the host socket as if foreground; Android keeps the process alive via the car service.
+    endpointLifecycle.setForeground(AppState.currentState === 'active' || isCarSessionActive())
+  applyForeground()
+  const appStateSubscription = AppState.addEventListener('change', applyForeground)
+  const unsubscribeCarSession = carSessionStore.subscribe(applyForeground)
   const closeLogical = logical.close
   logical.close = () => {
     appStateSubscription.remove()
+    unsubscribeCarSession()
     endpointLifecycle.stop()
     closeLogical()
   }
