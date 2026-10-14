@@ -2,7 +2,7 @@
 
 ## Preparação
 
-1. No desktop, com Node 24 e sem `CI`, gerar o instalador deste branch com `electron-builder --config config/electron-builder.config.cjs --win --publish never` e instalar por cima do Orca atual, porque o método `terminal.replyToAgentPrompt` só existe nele.
+1. No desktop, com Node 24 e sem `CI`, gerar o instalador deste branch com `pnpm build:win` e instalar por cima do Orca atual, porque o método `terminal.replyToAgentPrompt` só existe nele.
 2. Em `mobile/android`, rodar `gradlew assembleRelease`, que embute o JavaScript e dispensa o Metro no carro.
 3. Instalar `mobile/android/app/build/outputs/apk/release/app-release.apk` no celular com `adb install -r`.
 4. Instalar o Tailscale no PC e no celular, na mesma conta.
