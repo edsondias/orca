@@ -57,8 +57,10 @@ async function drawRectangle(page: Page): Promise<void> {
 // Why: parks the 400 ms commit debounce so only the unmount flush can save the draft.
 async function holdCommitDebounce(page: Page): Promise<void> {
   await page.evaluate(() => {
-    const originalSetTimeout = window.setTimeout.bind(window)
-    window.setTimeout = (handler: TimerHandler, timeout?: number, ...args: unknown[]) =>
+    // Why: the DOM-only view; `window` also carries Node's setTimeout type under this tsconfig.
+    const timers: Pick<Window, 'setTimeout'> = window
+    const originalSetTimeout = timers.setTimeout.bind(window)
+    timers.setTimeout = (handler: TimerHandler, timeout?: number, ...args: unknown[]) =>
       originalSetTimeout(handler, timeout === 400 ? 60_000 : timeout, ...args)
   })
 }
