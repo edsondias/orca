@@ -15640,6 +15640,10 @@
           "a0af0198aa": "Large diffs are not rendered by default.",
           "c3d9f4a712": "This diff's size isn't known yet, so it loads on request.",
           "f7fa7a40d0": "Load diff"
+        },
+        "ExcalidrawViewer": {
+          "361dee5208": "This drawing could not be opened.",
+          "01669bb639": "Open Source"
         }
       },
       "diff": {
