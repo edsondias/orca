@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { readExcalidrawLibrary, writeExcalidrawLibrary } from './excalidraw-library-store'
@@ -19,6 +19,12 @@ afterEach(() => {
 describe('Excalidraw library store', () => {
   it('reads a missing library as empty', () => {
     expect(readExcalidrawLibrary(libraryPath)).toEqual([])
+  })
+
+  it('throws when the library exists but cannot be read', () => {
+    // A directory at the path fails with EISDIR, standing in for EACCES and other read errors.
+    mkdirSync(libraryPath)
+    expect(() => readExcalidrawLibrary(libraryPath)).toThrow()
   })
 
   it('reads a corrupt library as empty and leaves the file untouched', () => {

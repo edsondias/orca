@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -45,5 +45,10 @@ describe('excalidrawLibrary IPC', () => {
     const items = [{ id: 'item-1', status: 'unpublished', elements: [], created: 1 }]
     handlerFor('excalidrawLibrary:write')({}, items)
     expect(handlerFor('excalidrawLibrary:read')({})).toEqual(items)
+  })
+
+  it('rejects a read the store cannot complete instead of answering an empty library', () => {
+    mkdirSync(join(root, 'excalidraw-library.json'))
+    expect(() => handlerFor('excalidrawLibrary:read')({})).toThrow()
   })
 })

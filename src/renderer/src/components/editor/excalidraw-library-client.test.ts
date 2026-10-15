@@ -8,7 +8,7 @@ import {
   shouldPersistLibrary
 } from './excalidraw-library-client'
 
-const read = vi.fn<() => Promise<unknown[]>>()
+const read = vi.fn<() => Promise<unknown>>()
 const write = vi.fn<(items: readonly unknown[]) => Promise<void>>()
 
 const DISK = [{ id: 'disk', status: 'unpublished' as const, elements: [], created: 1 }]
@@ -81,6 +81,41 @@ describe('Excalidraw library client', () => {
     expect(write).toHaveBeenCalledWith(QUEUED)
     await vi.advanceTimersByTimeAsync(1000)
     expect(write).toHaveBeenCalledTimes(1)
+  })
+
+  it('writes nothing after the stored library could not be read', async () => {
+    read.mockRejectedValue(new Error('EACCES: permission denied'))
+    await loadExcalidrawLibrary()
+    saveExcalidrawLibrary(QUEUED)
+    flushExcalidrawLibrarySave()
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(write).not.toHaveBeenCalled()
+  })
+
+  it('writes nothing after the stored library failed validation', async () => {
+    read.mockResolvedValue([42])
+    await loadExcalidrawLibrary()
+    saveExcalidrawLibrary(QUEUED)
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(write).not.toHaveBeenCalled()
+  })
+
+  it('writes nothing when the client has no library channel', async () => {
+    // The web client's fallback proxy resolves undefined for an unknown call.
+    read.mockResolvedValue(undefined)
+    await loadExcalidrawLibrary()
+    saveExcalidrawLibrary(QUEUED)
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(write).not.toHaveBeenCalled()
+  })
+
+  it('re-reads after a failed read and accepts saves once a read succeeds', async () => {
+    read.mockRejectedValueOnce(new Error('EBUSY')).mockResolvedValue(DISK)
+    await loadExcalidrawLibrary()
+    await expect(loadExcalidrawLibrary()).resolves.toEqual(DISK)
+    saveExcalidrawLibrary(QUEUED)
+    await vi.advanceTimersByTimeAsync(500)
+    expect(write).toHaveBeenCalledWith(QUEUED)
   })
 
   it('never lets an empty library replace one this session has not seen', () => {

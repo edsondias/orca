@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { writeFileAtomically } from '../codex-accounts/fs-utils'
+import { isENOENT } from '../ipc/filesystem-path-containment'
 
 /** Same envelope as an exported `.excalidrawlib`, so the file can be imported elsewhere. */
 type ExcalidrawLibraryFile = {
@@ -13,8 +14,12 @@ export function readExcalidrawLibrary(filePath: string): unknown[] {
   let text: string
   try {
     text = readFileSync(filePath, 'utf-8')
-  } catch {
-    return []
+  } catch (error) {
+    // Why: only a missing file is an empty library; answering [] for an unreadable one lets the next save erase it.
+    if (isENOENT(error)) {
+      return []
+    }
+    throw error
   }
   try {
     const parsed: unknown = JSON.parse(text)
