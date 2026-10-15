@@ -55,7 +55,7 @@ async function drawRectangle(page: Page): Promise<void> {
 }
 
 test.describe('Excalidraw editor', () => {
-  let directory: string
+  let directory = ''
 
   test.beforeEach(async ({ orcaPage }) => {
     await waitForSessionReady(orcaPage)
@@ -66,7 +66,15 @@ test.describe('Excalidraw editor', () => {
   })
 
   test.afterEach(async () => {
-    await rm(directory, { recursive: true, force: true })
+    if (!directory) {
+      return
+    }
+    try {
+      await rm(directory, { recursive: true, force: true })
+    } catch {
+      // Best-effort cleanup must not hide the editor regression assertion.
+    }
+    directory = ''
   })
 
   test('draws a rectangle and saves standard scene JSON with Ctrl+S', async ({
@@ -100,14 +108,13 @@ test.describe('Excalidraw editor', () => {
     await openDrawing(orcaPage, context, filePath)
     await drawRectangle(orcaPage)
     await orcaPage.getByRole('radio', { name: 'Source' }).click()
-    await expect
-      .poll(() =>
-        orcaPage.evaluate(() => {
-          const state = window.__store!.getState()
-          return state.editorDrafts[state.activeFileId ?? ''] ?? ''
-        })
-      )
-      .toContain('"rectangle"')
+    // Why: single read, no poll; only the unmount flush lands the draft before the 400 ms debounce.
+    const draft = await orcaPage.evaluate(() => {
+      const state = window.__store!.getState()
+      return state.editorDrafts[state.activeFileId ?? ''] ?? ''
+    })
+    expect(draft).toContain('"rectangle"')
+    await expect(orcaPage.locator('.monaco-editor .view-lines')).toContainText('"rectangle"')
   })
 
   test('opens an empty file as a blank drawing', async ({ orcaPage }) => {
@@ -118,6 +125,7 @@ test.describe('Excalidraw editor', () => {
     await expect(orcaPage.locator('.excalidraw canvas.interactive')).toBeVisible({
       timeout: 30_000
     })
+    await expect(orcaPage.getByText('This drawing could not be opened.')).toHaveCount(0)
   })
 
   test('shows an error for a file that is not a scene and leaves it untouched', async ({
@@ -128,8 +136,13 @@ test.describe('Excalidraw editor', () => {
     const original = '{"type":"excalidrawlib","libraryItems":[]}'
     await writeFile(filePath, original, 'utf8')
     await openDrawing(orcaPage, context, filePath)
-    await expect(orcaPage.getByText('This drawing could not be opened.')).toBeVisible()
+    const errorText = orcaPage.getByText('This drawing could not be opened.')
+    await expect(errorText).toBeVisible()
+    await errorText.click()
     await orcaPage.keyboard.press('ControlOrMeta+S')
+    // Why: asserting the absence of a write, so a late async save gets its chance to land.
+    await orcaPage.waitForTimeout(1000)
     expect(await readFile(filePath, 'utf8')).toBe(original)
+    await expect(errorText).toBeVisible()
   })
 })
