@@ -38,6 +38,8 @@ export type TabsSlice = {
         /** Client-local unified tab id to insert after; an explicit targetGroupId still wins. */
         afterTabId: string
         activate: boolean
+        /** false selects an activated tab without stamping its focus time (the group history still updates). */
+        recordFocus: boolean
         recordInteraction: boolean
       }
     >
@@ -77,7 +79,11 @@ export type TabsSlice = {
     entityId: string,
     contentType?: TabContentType
   ) => Tab | null
-  activateTab: (tabId: string, opts?: { preservePreview?: boolean; worktreeId?: string }) => void
+  activateTab: (
+    tabId: string,
+    /** recordFocus false skips the focus-time stamp (not a user visit); the group history still updates. */
+    opts?: { preservePreview?: boolean; worktreeId?: string; recordFocus?: boolean }
+  ) => void
   closeUnifiedTab: (
     tabId: string,
     opts?: {
@@ -130,24 +136,6 @@ export type TabsSlice = {
       splitDirection?: TabSplitDirection
     }
   ) => boolean
-  copyUnifiedTabToGroup: (
-    tabId: string,
-    targetGroupId: string,
-    init?: Partial<
-      Pick<
-        Tab,
-        | 'id'
-        | 'entityId'
-        | 'label'
-        | 'generatedLabel'
-        | 'quickCommandLabel'
-        | 'customLabel'
-        | 'color'
-        | 'isPinned'
-      >
-    >
-  ) => Tab | null
-  mergeGroupIntoSibling: (worktreeId: string, groupId: string) => string | null
   setTabGroupSplitRatio: (worktreeId: string, nodePath: string, ratio: number) => void
   reconcileWorktreeTabModel: (worktreeId: string) => {
     renderableTabCount: number

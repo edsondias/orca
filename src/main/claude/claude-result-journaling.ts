@@ -21,10 +21,10 @@ export type ClaudeResultJournalContext = Pick<
   | 'sink'
   | 'streamedBlocks'
   | 'streamedText'
-  | 'subagents'
   | 'providerFallback'
   | 'corrections'
   | 'turn'
+  | 'authenticationFailures'
 > & {
   prompts: ClaudeJournalPrompts
   context: ClaudeContextFacts
@@ -35,12 +35,12 @@ export function journalClaudeResult(
     sink,
     streamedBlocks,
     streamedText,
-    subagents,
     providerFallback,
     corrections,
     turn,
     prompts,
-    context
+    context,
+    authenticationFailures
   }: ClaudeResultJournalContext,
   message: Record<string, unknown>,
   observedAt: number
@@ -56,15 +56,15 @@ export function journalClaudeResult(
   }
   // Read before the settle below closes it: the result reports that turn's end.
   const endedTurnScope = turn.turnScope
-  // The stop Orca sent that turn: after the user's own, an error end is their cancellation.
-  const stop = settlesTurn ? turn.stop : null
+  // Read before the settle below closes the turn: an error end the journal's Stop rule makes a
+  // person's cancellation is theirs to decide as the end is written (`turnEndAfterStop`).
+  const turnId = settlesTurn ? turn.id : null
+  const leftToStop = turnId !== null && sink.journalStopDecidesTurn?.(turnId, observedAt) === true
   if (settlesTurn) {
     prompts.retryPendingCancellations()
     turn.suppressReopenOnFailure(message.is_error === true)
-    // The turn is over however it ended, so a foreground child still
-    // reported as working will never be settled by an event.
-    subagents.settleTurn(turn.groupKey)
-    context.settle(message, commandEnd ?? claudeTurnEndForResult(message, observedAt, stop))
+    corrections.abandon()
+    context.settle(message, commandEnd ?? claudeTurnEndForResult(message, observedAt, leftToStop))
     // The turn is over. A block still awaiting its final keeps the text the
     // flush above journaled, but its live state goes: an interrupted turn
     // would otherwise retain that text for the life of the session.
@@ -72,8 +72,9 @@ export function journalClaudeResult(
     streamedText.settle()
   }
   const kind = claudeProviderFrameKind(message)
-  const failure = claudeResultFailure(message, stop)
-  if (failure || !isSettledClaudeResultKind(kind)) {
+  const failure = claudeResultFailure(message, leftToStop)
+  const alreadyShown = authenticationFailures.resultAlreadyShown(message)
+  if ((failure || !isSettledClaudeResultKind(kind)) && !alreadyShown) {
     providerFallback.append(
       kind,
       message,

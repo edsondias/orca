@@ -1,10 +1,11 @@
 import { defineMethod } from '../../core'
 import { admitMobileTerminalInput } from './mobile-terminal-input-admission'
-import { TerminalReplyToAgentPrompt } from './unary-schemas'
+import { TerminalReplyToAgentPrompt } from '../../../../../shared/rpc-contract/terminal-unary-params'
 
 export const TERMINAL_REPLY_TO_AGENT_PROMPT_METHODS = [
   defineMethod({
     name: 'terminal.replyToAgentPrompt',
+    permission: 'workspace',
     params: TerminalReplyToAgentPrompt,
     handler: async (params, { runtime, signal }) => {
       const admission = admitMobileTerminalInput(runtime, params.terminal, params.client)

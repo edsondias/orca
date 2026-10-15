@@ -68,6 +68,11 @@ export type ConnectionDiagnosticCode =
   | 'car-session-ended'
   | 'car-reply-delivered'
   | 'car-reply-refused'
+  // OTA web shell lifecycle; diagnostics only, never read as connection failures.
+  | 'web-shell-flow'
+  | 'web-shell-page'
+  | 'web-shell-stalled'
+  | 'web-shell-bridge'
 
 export type ConnectionLogEntry = {
   id: string

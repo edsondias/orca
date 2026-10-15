@@ -197,7 +197,7 @@ describe('cancelClaudeTurn', () => {
 })
 
 describe('answerClaudePrompt', () => {
-  it('resolves cancellation observation when teardown clears the prompt registry', async () => {
+  it('forgets a pending prompt and its claim when teardown clears the registry', () => {
     const prompts = new ClaudePromptRegistry()
     const settle = vi.fn()
     const prompt = prompts.register({
@@ -213,19 +213,8 @@ describe('answerClaudePrompt', () => {
     if (!claim) {
       throw new Error('expected prompt claim')
     }
-    const observed = prompts.observeCancellation(claim)
-    if (!observed) {
-      throw new Error('expected cancellation observation')
-    }
-    let observedCancellation = false
-    void observed.then(() => {
-      observedCancellation = true
-    })
 
     expect(prompts.clear()).toEqual([prompt])
-    await Promise.resolve()
-
-    expect(observedCancellation).toBe(true)
     expect(prompts.find('journal-clear')).toBeNull()
     expect(prompts.ownsClaim(claim)).toBe(false)
     expect(settle).not.toHaveBeenCalled()
@@ -249,12 +238,13 @@ describe('answerClaudePrompt', () => {
       handle: vi.fn(),
       openTurnInLiveProviderCycle: false,
       journalPrompts: {
-        cancel: vi.fn(() => ({ accepted: true as const })),
-        resolve: resolvePrompt
+        resolve: resolvePrompt,
+        handOver: () => () => {},
+        cancel: () => ({ accepted: true }),
+        openCards: () => [][Symbol.iterator](),
+        whenWritten: () => undefined
       },
       currentTurnId: null,
-      recordTurnStop: () => true,
-      withdrawTurnStop: () => {},
       commandTurnId: null,
       beginCommand: vi.fn(),
       forgetCommand: vi.fn(),
@@ -318,34 +308,28 @@ describe('stopClaudeBackgroundTasks', () => {
     return { childWork, connection: { stopTask } } as unknown as ClaudeSession
   }
 
-  it('stops exactly the ids the host named, and ends each acknowledged one', async () => {
+  it('stops exactly the ids the host named, and reports each acknowledged one', async () => {
     const childWork = liveChildWork(['task-agent', 'task-bash'])
     const stopTask = vi.fn(async (_taskId: string, _options?: { timeoutMs?: number }) => {})
     const session = stoppingSession(childWork, stopTask)
+    const acknowledge = vi.fn()
 
     await expect(
-      stopClaudeBackgroundTasks(session, 5_000, () => true, ['task-agent', 'task-bash'])
+      stopClaudeBackgroundTasks(
+        session,
+        5_000,
+        () => true,
+        ['task-agent', 'task-bash'],
+        acknowledge
+      )
     ).resolves.toEqual({ cancelled: true })
+    expect(acknowledge.mock.calls).toEqual([[{ taskId: 'task-agent' }], [{ taskId: 'task-bash' }]])
     expect(stopTask.mock.calls).toEqual([
       ['task-agent', { timeoutMs: 5_000 }],
       ['task-bash', { timeoutMs: 5_000 }]
     ])
-    expect(childWork.drain(2)).toEqual([
-      {
-        type: 'ended',
-        observedAt: 2,
-        handle: { idKind: 'task_id', id: 'task-agent' },
-        outcome: 'cancelled',
-        basis: 'stop-acknowledged'
-      },
-      {
-        type: 'ended',
-        observedAt: 2,
-        handle: { idKind: 'task_id', id: 'task-bash' },
-        outcome: 'cancelled',
-        basis: 'stop-acknowledged'
-      }
-    ])
+    // The host settles what was acknowledged; the decoder records nothing of its own.
+    expect(childWork.drain(2)).toEqual([])
   })
 
   it('stops issuing requests when ownership changes between tasks', async () => {
@@ -366,15 +350,16 @@ describe('stopClaudeBackgroundTasks', () => {
       throw new ClaudeControlRequestError('stop_task', 'Task task-live is owned by another agent')
     })
     const session = stoppingSession(childWork, stopTask)
+    const acknowledge = vi.fn()
 
     await expect(
-      stopClaudeBackgroundTasks(session, undefined, () => true, ['task-live'])
+      stopClaudeBackgroundTasks(session, undefined, () => true, ['task-live'], acknowledge)
     ).resolves.toEqual({ cancelled: false })
-    expect(childWork.drain(2)).toEqual([])
-    await expect(stopClaudeBackgroundTasks(session, undefined, () => true, [])).resolves.toEqual({
-      cancelled: false
-    })
+    await expect(
+      stopClaudeBackgroundTasks(session, undefined, () => true, [], acknowledge)
+    ).resolves.toEqual({ cancelled: false })
     expect(stopTask).toHaveBeenCalledTimes(1)
+    expect(acknowledge).not.toHaveBeenCalled()
   })
 
   it('stops the remaining tasks after one request fails, then reports the failure', async () => {
@@ -386,34 +371,39 @@ describe('stopClaudeBackgroundTasks', () => {
       }
     })
     const session = stoppingSession(childWork, stopTask)
+    const acknowledge = vi.fn()
 
     await expect(
-      stopClaudeBackgroundTasks(session, undefined, () => true, ['task-1', 'task-2'])
+      stopClaudeBackgroundTasks(session, undefined, () => true, ['task-1', 'task-2'], acknowledge)
     ).rejects.toBe(lost)
     expect(stopTask.mock.calls.map(([taskId]) => taskId)).toEqual(['task-1', 'task-2'])
-    expect(childWork.drain(2)).toMatchObject([
-      { type: 'ended', handle: { id: 'task-2' }, outcome: 'cancelled' }
-    ])
+    // The failure is reported, and the stop it did not touch is still named.
+    expect(acknowledge.mock.calls).toEqual([[{ taskId: 'task-2' }]])
   })
 
   it('stops asking after a request times out: a CLI not answering costs one deadline, not one per task', async () => {
     const childWork = liveChildWork(['task-0', 'task-1', 'task-2', 'task-3', 'task-4'])
     // Never answered, behind the real deadline wrapper, with a short deadline.
-    const stopTask = vi.fn((_taskId: string, options?: { timeoutMs?: number }) =>
-      runClaudeControl('stop_task', () => new Promise<void>(() => {}), options?.timeoutMs)
+    const stopTask = vi.fn((taskId: string, options?: { timeoutMs?: number }) =>
+      taskId === 'task-0'
+        ? Promise.resolve()
+        : runClaudeControl('stop_task', () => new Promise<void>(() => {}), options?.timeoutMs)
     )
     const session = stoppingSession(childWork, stopTask)
+    const acknowledge = vi.fn()
 
     await expect(
-      stopClaudeBackgroundTasks(session, 50, () => true, [
-        'task-0',
-        'task-1',
-        'task-2',
-        'task-3',
-        'task-4'
-      ])
+      stopClaudeBackgroundTasks(
+        session,
+        50,
+        () => true,
+        ['task-0', 'task-1', 'task-2', 'task-3', 'task-4'],
+        acknowledge
+      )
     ).rejects.toBeInstanceOf(ClaudeControlRequestTimeoutError)
-    expect(stopTask).toHaveBeenCalledTimes(1)
+    expect(stopTask).toHaveBeenCalledTimes(2)
+    // What the CLI accepted before it went quiet is still named.
+    expect(acknowledge.mock.calls).toEqual([[{ taskId: 'task-0' }]])
     expect(childWork.drain(2)).toEqual([])
   })
 })

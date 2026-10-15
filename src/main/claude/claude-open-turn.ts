@@ -12,30 +12,28 @@ import {
   type AgentJournalTurnScope
 } from '../../shared/agent-session-journal-types'
 import type { StructuredAgentSessionEventSink } from '../native-chat/agent-session-wire/structured-agent-session-event-sink'
-import type { StructuredAgentSessionStopCause } from '../native-chat/agent-session-wire/structured-agent-session-adapter'
 import {
   claudeCurrentTurnIdentity,
   claudeTurnLifecycleItem,
   type ClaudeCurrentTurn,
   type ClaudeTurnEnd
 } from './claude-turn-lifecycle-item'
-import { writeClaudeTurnRow } from './claude-turn-row-revision'
+import { writeAgentJournalTurnRow } from '../native-chat/agent-session-timeline/agent-journal-turn-row-revision'
 import type { ClaudeCommandTurn } from './claude-command-turn'
 import { createClaudeTurnOpener, type ClaudeTurnSource } from './claude-turn-opening'
 
 export type ClaudeOpenTurnDeps = {
   sink: StructuredAgentSessionEventSink
-  /** Settles the superseded turn's children; they get no later event of their own. */
-  settleChildren: (groupKey: string | null) => void
+  /** The superseded turn's spawn calls get no announcement now. */
+  turnSuperseded: () => void
+  /** Ends what the ending turn left open, at the instant it ended; no later frame will. */
+  endOpenWork: (completedAt: number) => void
   /** A turn opening moves the conversation on. */
   onOpen?: () => void
 }
 
 export class ClaudeOpenTurn {
   private current: ClaudeCurrentTurn | null = null
-  /** The stop Orca sent, held against the turn it was sent to: it reads only while that turn is open. */
-  private sentStop: { turn: ClaudeCurrentTurn; cause: StructuredAgentSessionStopCause } | null =
-    null
   /** Provider output may not reopen a turn after the session ended or a turn
    *  failed: nothing would ever close the turn it opened, and the row would read
    *  working for the life of the session. Only an accepted send lifts it. */
@@ -82,32 +80,8 @@ export class ClaudeOpenTurn {
       : AGENT_JOURNAL_THREAD_SCOPE
   }
 
-  get groupKey(): string | null {
-    return this.current ? `${this.current.sessionId}:${this.current.turnId}` : null
-  }
-
   get isOpen(): boolean {
     return this.current !== null
-  }
-
-  get stop(): StructuredAgentSessionStopCause | null {
-    return this.current && this.sentStop?.turn === this.current ? this.sentStop.cause : null
-  }
-
-  /** Orca is stopping `turnId`. False when that turn is no longer the open one. */
-  recordStop(turnId: string, cause: StructuredAgentSessionStopCause): boolean {
-    if (this.current?.turnId !== turnId) {
-      return false
-    }
-    this.sentStop = { turn: this.current, cause }
-    return true
-  }
-
-  /** The provider refused the stop, so the turn goes on as if none was sent. */
-  withdrawStop(turnId: string): void {
-    if (this.current?.turnId === turnId) {
-      this.sentStop = null
-    }
   }
 
   /** Whether a turn is open inside a provider request cycle that has already
@@ -134,7 +108,8 @@ export class ClaudeOpenTurn {
   open(turn: ClaudeCurrentTurn, observedAt: number): void {
     this.deps.onOpen?.()
     if (this.current) {
-      this.deps.settleChildren(this.groupKey)
+      this.deps.turnSuperseded()
+      this.deps.endOpenWork(observedAt)
       this.publish(this.current, {
         state: 'interrupted',
         completedAt: observedAt,
@@ -151,7 +126,8 @@ export class ClaudeOpenTurn {
   beginCommand(turn: ClaudeCurrentTurn): void {
     this.deps.onOpen?.()
     if (this.current) {
-      this.deps.settleChildren(this.groupKey)
+      this.deps.turnSuperseded()
+      this.deps.endOpenWork(turn.startedAt)
       this.publish(this.current, {
         state: 'interrupted',
         completedAt: turn.startedAt,
@@ -192,6 +168,8 @@ export class ClaudeOpenTurn {
   settle(end: ClaudeTurnEnd, contextUsage?: AgentSessionContextUsage): void {
     // Every settle is a provider cycle ending (result, idle, child exit).
     this.cycleWorkObserved = false
+    // Even with no turn open: work a suppressed turn produced still ends here.
+    this.deps.endOpenWork(end.completedAt)
     if (this.current) {
       this.publish(this.current, end, contextUsage)
       this.current = null
@@ -222,13 +200,13 @@ export class ClaudeOpenTurn {
     contextUsage?: AgentSessionContextUsage
   ): void {
     const item = claudeTurnLifecycleItem(turn, end)
-    writeClaudeTurnRow(
+    writeAgentJournalTurnRow(
       this.deps.sink,
       { identity: item.identity },
       { lifecycle: item.body, ...(contextUsage ? { contextUsage } : {}) },
       { publish: false, options: item.options }
     )
-    // Preserve first-work evidence when completion arrives before the journal drains.
+    // Keyed apart, so this never replaces the start's publication while it still waits to run.
     this.deps.sink.publish({ coalescingKey: item.publishCoalescingKey })
   }
 }

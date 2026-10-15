@@ -1,8 +1,5 @@
 import type { WorktreeSlice } from '../../worktree-helpers'
 import type { WorktreeSliceGet, WorktreeSliceSet } from '../listing/worktree-slice-types'
-import type { AppState } from '../../../types'
-import type { WorktreeMeta } from '../../../../../../shared/worktree/meta-types'
-import { applyWorktreeUpdates } from '../../worktree-helpers'
 import { projectWorktreeTabModelReconciliation } from '../../tabs'
 import { moveFocusToRendererBeforeFocusedWebviewHidden } from '../../browser-webview-cleanup'
 import { tabHasLivePty } from '@/lib/tab-has-live-pty'
@@ -18,11 +15,7 @@ import {
   parseWorkspaceKey,
   worktreeWorkspaceKey
 } from '../../../../../../shared/workspace-scope'
-import {
-  applyDetectedWorktreeUpdates,
-  findKnownWorktreeById
-} from '../listing/detected-worktree-meta'
-import { persistPassiveWorktreeMetaForOwner } from '../listing/worktree-owner-settings'
+import { findKnownWorktreeById } from '../listing/detected-worktree-meta'
 import { resolveActivatedWorktreeSurface } from './active-worktree-surface'
 import { clearWorktreeSleepIntent } from '@/lib/worktree-sleep-intent'
 import {
@@ -36,6 +29,9 @@ export function createSetActiveWorktree(
 ): WorktreeSlice['setActiveWorktree'] {
   return (worktreeId, executionHostId, options) => {
     const stateTransition = options?.stateTransition?.(get())
+    const createdTabIds = new Set(options?.createdTabIds)
+    // A tab its caller just created is not asleep: its first bind is new work, not a wake.
+    const isWakeable = (tab: { id: string }): boolean => !createdTabIds.has(tab.id)
     if (stateTransition && !stateTransition.activate) {
       if (Object.keys(stateTransition.patch).length > 0) {
         set(stateTransition.patch)
@@ -50,13 +46,10 @@ export function createSetActiveWorktree(
     if (get().activeWorktreeId !== worktreeId) {
       moveFocusToRendererBeforeFocusedWebviewHidden()
     }
-    let shouldClearUnread = false
     let shouldPrepareTerminalTabs = false
     let shouldTagTerminalTabs = false
     set((current) => {
-      const transitioned = stateTransition
-        ? ({ ...current, ...stateTransition.patch } as AppState)
-        : current
+      const transitioned = stateTransition ? { ...current, ...stateTransition.patch } : current
       const reconciliation = worktreeId
         ? projectWorktreeTabModelReconciliation(transitioned, worktreeId)
         : null
@@ -65,7 +58,7 @@ export function createSetActiveWorktree(
       )
       const s =
         reconciliation && reconciliationChanged
-          ? ({ ...transitioned, ...reconciliation.patch } as AppState)
+          ? { ...transitioned, ...reconciliation.patch }
           : transitioned
       const reconciledActiveTabId = reconciliation?.activeRenderableTabId ?? null
       if (!worktreeId) {
@@ -80,7 +73,6 @@ export function createSetActiveWorktree(
       }
 
       const worktree = findKnownWorktreeById(s, worktreeId, executionHostId)
-      shouldClearUnread = Boolean(worktree?.isUnread)
       const {
         restoredRightSidebarExplorerView,
         activeFileId,
@@ -94,42 +86,26 @@ export function createSetActiveWorktree(
         reconciledActiveTabId
       )
 
-      // Why: focus isn't smart-sort activity — writing lastActivityAt here caused the "jump after focus" bug; only clear unread.
-      const metaUpdates: Partial<WorktreeMeta> = shouldClearUnread ? { isUnread: false } : {}
-
       // Why: prep is deferred (shell render deferred below) so it waits for input quiet instead of blocking the click.
       // Why first-activation guard, not tab.ptyId==null: reconnectPersistedTerminals repopulates ptyId before mount.
       // Tag every tab on FIRST activation so reattach/fresh-spawn updateTabPtyId suppresses activity + sortEpoch bumps.
       // Generation is only bumped when no tab has a live PTY — a live remount would kill the user's shell.
       const tabs = s.tabsByWorktree[worktreeId ?? ''] ?? []
+      const wakeable = tabs.filter(isWakeable)
       const allDead =
         worktreeId != null &&
-        tabs.length > 0 &&
-        tabs.every((tab) => !tabHasLivePty(s.ptyIdsByTabId, tab.id))
+        wakeable.length > 0 &&
+        wakeable.every((tab) => !tabHasLivePty(s.ptyIdsByTabId, tab.id))
       const isFirstActivation = worktreeId != null && !s.everActivatedWorktreeIds.has(worktreeId)
-      const shouldTagTabs = worktreeId != null && tabs.length > 0 && isFirstActivation
+      const shouldTagTabs = worktreeId != null && wakeable.length > 0 && isFirstActivation
       // Why: bump generation in the same set() as activation so a dead-transport pane can't go visible-but-dead before remount.
       shouldPrepareTerminalTabs = Boolean(
-        worktreeId && tabs.length > 0 && shouldTagTabs && !allDead
+        worktreeId && wakeable.length > 0 && shouldTagTabs && !allDead
       )
       shouldTagTerminalTabs = shouldTagTabs
       const nextEverActivated = isFirstActivation
         ? new Set([...s.everActivatedWorktreeIds, worktreeId!])
         : s.everActivatedWorktreeIds
-      const nextWorktrees = shouldClearUnread
-        ? applyWorktreeUpdates(s.worktreesByRepo, worktreeId, metaUpdates)
-        : s.worktreesByRepo
-      const nextDetectedWorktrees = shouldClearUnread
-        ? applyDetectedWorktreeUpdates(s.detectedWorktreesByRepo, worktreeId, metaUpdates)
-        : s.detectedWorktreesByRepo
-      const nextFolderWorkspaces =
-        shouldClearUnread && workspaceScope?.type === 'folder'
-          ? s.folderWorkspaces.map((workspace) =>
-              workspace.id === workspaceScope.folderWorkspaceId
-                ? { ...workspace, isUnread: false }
-                : workspace
-            )
-          : s.folderWorkspaces
       const nextActiveRepoId =
         workspaceScope?.type === 'folder'
           ? null
@@ -141,13 +117,17 @@ export function createSetActiveWorktree(
           ? {
               tabsByWorktree: {
                 ...s.tabsByWorktree,
-                [worktreeId]: tabs.map((tab) => ({
-                  ...tab,
-                  generation: (tab.generation ?? 0) + 1,
-                  pendingActivationSpawn: getTerminalActivationSpawnSuppression(
-                    s.terminalLayoutsByTabId[tab.id]
-                  )
-                }))
+                [worktreeId]: tabs.map((tab) =>
+                  !isWakeable(tab)
+                    ? tab
+                    : {
+                        ...tab,
+                        generation: (tab.generation ?? 0) + 1,
+                        pendingActivationSpawn: getTerminalActivationSpawnSuppression(
+                          s.terminalLayoutsByTabId[tab.id]
+                        )
+                      }
+                )
               }
             }
           : {}
@@ -168,10 +148,8 @@ export function createSetActiveWorktree(
         s.activeTabId !== activeTabId ||
         nextActiveTabTypeByWorktree !== s.activeTabTypeByWorktree ||
         nextEverActivated !== s.everActivatedWorktreeIds ||
-        nextWorktrees !== s.worktreesByRepo ||
-        nextDetectedWorktrees !== s.detectedWorktreesByRepo ||
-        nextFolderWorkspaces !== s.folderWorkspaces ||
         nextActiveRepoId !== s.activeRepoId ||
+        allDead ||
         reconciliationChanged ||
         stateTransition !== undefined
       if (!hasStateChange) {
@@ -196,13 +174,6 @@ export function createSetActiveWorktree(
         rightSidebarExplorerView: restoredRightSidebarExplorerView,
         activeTabId,
         everActivatedWorktreeIds: nextEverActivated,
-        ...(nextWorktrees !== s.worktreesByRepo ? { worktreesByRepo: nextWorktrees } : {}),
-        ...(nextDetectedWorktrees !== s.detectedWorktreesByRepo
-          ? { detectedWorktreesByRepo: nextDetectedWorktrees }
-          : {}),
-        ...(nextFolderWorkspaces !== s.folderWorkspaces
-          ? { folderWorkspaces: nextFolderWorkspaces }
-          : {}),
         ...tabsByWorktreeUpdate
       }
     })
@@ -220,24 +191,29 @@ export function createSetActiveWorktree(
             return s
           }
           const tabs = s.tabsByWorktree[worktreeId] ?? []
-          if (tabs.length === 0) {
+          const wakeable = tabs.filter(isWakeable)
+          if (wakeable.length === 0) {
             return s
           }
-          const allDead = tabs.every((tab) => !tabHasLivePty(s.ptyIdsByTabId, tab.id))
+          const allDead = wakeable.every((tab) => !tabHasLivePty(s.ptyIdsByTabId, tab.id))
           if (!allDead && !shouldTagTerminalTabs) {
             return s
           }
           return {
             tabsByWorktree: {
               ...s.tabsByWorktree,
-              [worktreeId]: tabs.map((tab) => ({
-                ...tab,
-                ...(allDead ? { generation: (tab.generation ?? 0) + 1 } : {}),
-                // Why: slept terminal remount/spawn is click-driven wake work; tag its PTY updates so they don't reshuffle Recent.
-                pendingActivationSpawn: getTerminalActivationSpawnSuppression(
-                  s.terminalLayoutsByTabId[tab.id]
-                )
-              }))
+              [worktreeId]: tabs.map((tab) =>
+                !isWakeable(tab)
+                  ? tab
+                  : {
+                      ...tab,
+                      ...(allDead ? { generation: (tab.generation ?? 0) + 1 } : {}),
+                      // Why: slept terminal remount/spawn is click-driven wake work; tag its PTY updates so they don't reshuffle Recent.
+                      pendingActivationSpawn: getTerminalActivationSpawnSuppression(
+                        s.terminalLayoutsByTabId[tab.id]
+                      )
+                    }
+              )
             }
           }
         })
@@ -262,26 +238,10 @@ export function createSetActiveWorktree(
     }
 
     // Why: activation is explicit enough to revalidate PR state now; the coordinator still coalesces and rate-guards.
-    if (worktreeId) {
+    if (worktreeId && workspaceScope?.type !== 'folder') {
       get().refreshGitHubForWorktreeIfStale(worktreeId)
     }
 
-    if (!worktreeId || !get().getKnownWorktreeById(worktreeId, executionHostId)) {
-      return true
-    }
-
-    if (shouldClearUnread) {
-      if (workspaceScope?.type === 'folder') {
-        void get().updateFolderWorkspace(workspaceScope.folderWorkspaceId, { isUnread: false })
-        return true
-      }
-      persistPassiveWorktreeMetaForOwner(
-        get,
-        worktreeId,
-        { isUnread: false },
-        'persist worktree activation state'
-      )
-    }
     return true
   }
 }
