@@ -127,6 +127,11 @@ export default function ExcalidrawViewer({
     [editing]
   )
 
+  // Why: Excalidraw memoizes on shallow props; a new callback each render defeats it.
+  const handleApi = useCallback((api: ExcalidrawImperativeAPI) => {
+    apiRef.current = api
+  }, [])
+
   const handleLibraryChange = useCallback((items: LibraryItems) => {
     if (!shouldPersistLibrary(items.length, libraryHadItemsRef.current)) {
       return
@@ -221,9 +226,7 @@ export default function ExcalidrawViewer({
       <Excalidraw
         key={viewerState.mountKey}
         initialData={viewerState.initialData}
-        excalidrawAPI={(api) => {
-          apiRef.current = api
-        }}
+        excalidrawAPI={handleApi}
         theme={isDark ? 'dark' : 'light'}
         UIOptions={UI_OPTIONS}
         onChange={handleChange}
