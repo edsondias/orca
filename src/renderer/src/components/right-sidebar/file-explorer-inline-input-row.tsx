@@ -2,9 +2,11 @@ import React, { useCallback, useRef } from 'react'
 import { File, Folder } from 'lucide-react'
 import type { TreeNode } from './file-explorer-types'
 
+export type FileExplorerNewEntryKind = 'file' | 'folder' | 'excalidraw'
+
 export type InlineInput = {
   parentPath: string
-  type: 'file' | 'folder' | 'rename'
+  type: FileExplorerNewEntryKind | 'rename'
   depth: number
   existingName?: string
   existingPath?: string

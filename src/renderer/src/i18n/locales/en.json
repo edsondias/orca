@@ -12330,7 +12330,8 @@
           },
           "FileExplorerBackgroundMenu": {
             "3b5e2dcb8d": "New Folder",
-            "21fe46ed36": "New File"
+            "21fe46ed36": "New File",
+            "e113b99f4c": "New Excalidraw Drawing"
           },
           "FileExplorerRow": {
             "addc01145f": "Delete",
@@ -13737,6 +13738,17 @@
             "sourceMissing": "Transcript is no longer available",
             "metadataMatch": "Match in session metadata",
             "sourceActionsUnavailable": "The transcript source is unavailable."
+          },
+          "file": {
+            "explorer": {
+              "row": {
+                "context": {
+                  "menu": {
+                    "aab3194d85": "New Excalidraw Drawing"
+                  }
+                }
+              }
+            }
           }
         }
       },

@@ -11,6 +11,7 @@ import {
   Globe,
   ListCollapse,
   Pencil,
+  PenTool,
   Search,
   SquareTerminal,
   Trash2
@@ -158,6 +159,13 @@ export function FileExplorerRowContextMenu({
       <ContextMenuItem onSelect={() => onStartNew('file', targetDir, targetDepth)}>
         <FilePlus />
         {translate('auto.components.right.sidebar.FileExplorerRow.37c875d827', 'New File')}
+      </ContextMenuItem>
+      <ContextMenuItem onSelect={() => onStartNew('excalidraw', targetDir, targetDepth)}>
+        <PenTool />
+        {translate(
+          'auto.components.right.sidebar.file.explorer.row.context.menu.aab3194d85',
+          'New Excalidraw Drawing'
+        )}
       </ContextMenuItem>
       <ContextMenuItem onSelect={() => onStartNew('folder', targetDir, targetDepth)}>
         <FolderPlus />
