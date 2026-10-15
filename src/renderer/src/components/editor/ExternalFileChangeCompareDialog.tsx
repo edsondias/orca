@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dialog'
 import { lazyWithRetry as lazy } from '@/lib/lazy-with-retry'
 import { getConnectionIdForFile } from '@/lib/connection-context'
-import { detectLanguage } from '@/lib/language-detect'
+import { detectLanguage, toMonacoLanguage } from '@/lib/language-detect'
 import { readRuntimeFileContent } from '@/runtime/runtime-file-client'
 import { settingsForRuntimeOwner } from '@/runtime/runtime-rpc-client'
 import { useAppStore } from '@/store'
@@ -92,7 +92,7 @@ export function ExternalFileChangeCompareDialog({
     file.externalSshTargetId
   ])
 
-  const language = detectLanguage(file.relativePath)
+  const language = toMonacoLanguage(detectLanguage(file.relativePath))
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

@@ -25,11 +25,13 @@ vi.mock('@/store', () => ({
 // Why: the lazy DiffViewer chunk cannot resolve under happy-dom; a stub that
 // echoes its props pins the disk-left/buffer-right wiring instead.
 vi.mock('@/lib/lazy-with-retry', () => ({
-  lazyWithRetry: () => (props: { originalContent: string; modifiedContent: string }) => (
-    <div data-testid="diff-stub">
-      original:{props.originalContent}|modified:{props.modifiedContent}
-    </div>
-  )
+  lazyWithRetry:
+    () => (props: { originalContent: string; modifiedContent: string; language: string }) => (
+      <div data-testid="diff-stub">
+        original:{props.originalContent}|modified:{props.modifiedContent}|language:
+        {props.language}
+      </div>
+    )
 }))
 
 import { ExternalFileChangeCompareDialog } from './ExternalFileChangeCompareDialog'
@@ -138,5 +140,22 @@ describe('ExternalFileChangeCompareDialog', () => {
       buttons.find((b) => b.textContent === 'Keep My Edits')?.click()
     })
     expect(onKeepEdits).toHaveBeenCalledTimes(1)
+  })
+
+  it('highlights an Excalidraw drawing as JSON', async () => {
+    mocks.readRuntimeFileContent.mockResolvedValue({ content: '{}', isBinary: false })
+
+    await render(
+      <ExternalFileChangeCompareDialog
+        file={{ ...file, filePath: '/repo/board.excalidraw', relativePath: 'board.excalidraw' }}
+        currentContent="{}"
+        open
+        onOpenChange={vi.fn()}
+        onReload={vi.fn()}
+        onKeepEdits={vi.fn()}
+      />
+    )
+
+    expect(document.body.textContent).toContain('language:json')
   })
 })

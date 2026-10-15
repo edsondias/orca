@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { DiffOnMount } from '@monaco-editor/react'
 import type { editor as monacoEditor } from 'monaco-editor'
-import { detectLanguage } from '@/lib/language-detect'
+import { detectLanguage, toMonacoLanguage } from '@/lib/language-detect'
 import { useAppStore } from '@/store'
 import { computeDiffEditorFontSize, resolveEditorFontFamily } from '@/lib/editor-font-zoom'
 import { selectWorktreeDiffComments } from '@/store/worktree-diff-comments-selector'
@@ -63,7 +63,7 @@ export function DiffSectionItem({
     () => (allDiffComments ?? []).filter((c) => c.filePath === section.path && isDiffComment(c)),
     [allDiffComments, section.path]
   )
-  const language = detectLanguage(section.path)
+  const language = toMonacoLanguage(detectLanguage(section.path))
   const isEditable = section.area === 'unstaged'
   const modelPathBase = useMemo(
     () =>
