@@ -11,6 +11,7 @@ import { EditorFileLoadErrorView } from './EditorFileLoadErrorView'
 import type { FileContent } from './editor-panel-content-types'
 import { buildPdfScalePreferenceKey } from './pdf-scale-preference-storage'
 import { translate } from '@/i18n/i18n'
+import { toMonacoLanguage } from '@/lib/language-detect'
 import { useEditorConflictNavigation } from './useEditorConflictNavigation'
 import { useMarkdownDocuments } from './useMarkdownDocuments'
 import type { MarkdownRenderState } from './markdown-render-mode'
@@ -110,7 +111,7 @@ export function EditorContent({
   // Why: the same absolute path can exist in different worktrees, paired
   // runtimes, or SSH targets; durable PDF zoom must not cross those owners.
   const pdfPreferenceKey = buildPdfScalePreferenceKey(activeFile)
-  const monacoLanguage = resolvedLanguage === 'notebook' ? 'json' : resolvedLanguage
+  const monacoLanguage = toMonacoLanguage(resolvedLanguage)
   const reloadOpenCheckRunDetailsTab = useAppStore((state) => state.reloadOpenCheckRunDetailsTab)
   const markdownDocuments = useMarkdownDocuments(activeFile, isMarkdown, mdViewMode, handleSave)
   const getConflictNavigation = useEditorConflictNavigation()

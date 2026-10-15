@@ -29,6 +29,7 @@ const EXT_TO_LANGUAGE: Record<string, string> = {
   // would flag every record after line one as trailing content.
   '.jsonl': 'jsonl',
   '.ipynb': 'notebook',
+  '.excalidraw': 'excalidraw',
   '.md': 'markdown',
   '.mdx': 'markdown',
   '.mmd': 'mermaid',
@@ -156,6 +157,11 @@ export function detectLanguage(filePath: string): string {
     return FILENAME_LOWER_TO_LANGUAGE[lowerFilename]
   }
 
+  // Why: the compound name's last extension alone would read as plain JSON.
+  if (lowerFilename.endsWith('.excalidraw.json')) {
+    return 'excalidraw'
+  }
+
   // Check extension
   const ext = extname(filename).toLowerCase()
   const lowerName = filename.toLowerCase()
@@ -165,4 +171,9 @@ export function detectLanguage(filePath: string): string {
     detectMonacoFilenameLanguage(filename) ??
     (lowerName === '.env' || lowerName.startsWith('.env.') ? 'ini' : 'plaintext')
   )
+}
+
+/** Monaco has no notebook or Excalidraw grammar; both are JSON on disk. */
+export function toMonacoLanguage(language: string): string {
+  return language === 'notebook' || language === 'excalidraw' ? 'json' : language
 }

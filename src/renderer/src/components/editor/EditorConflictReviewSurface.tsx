@@ -1,5 +1,5 @@
 import React from 'react'
-import { detectLanguage } from '@/lib/language-detect'
+import { detectLanguage, toMonacoLanguage } from '@/lib/language-detect'
 import { joinPath } from '@/lib/path'
 import { useAppStore } from '@/store'
 import type { OpenFile, PendingEditorReveal } from '@/store/slices/editor'
@@ -162,7 +162,7 @@ export function EditorConflictReviewSurface({
     }
 
     const selectedLanguage = detectLanguage(contentFile.relativePath)
-    const monacoLanguage = selectedLanguage === 'notebook' ? 'json' : selectedLanguage
+    const monacoLanguage = toMonacoLanguage(selectedLanguage)
     const selectedViewStateKey = `${contentFile.filePath}::${viewStateScopeId}:${viewStateKeySuffix}`
     const selectedContent = editBuffers[contentFile.id] ?? fileContent.content
 

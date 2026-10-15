@@ -249,3 +249,33 @@ describe('getEditorPanelRenderModel markdown export affordance', () => {
     ).toBe(false)
   })
 })
+
+describe('Excalidraw render model', () => {
+  const excalidrawFile = (overrides: Partial<OpenFile> = {}): OpenFile =>
+    markdownFile({
+      id: '/repo/diagram.excalidraw',
+      filePath: '/repo/diagram.excalidraw',
+      relativePath: 'diagram.excalidraw',
+      language: 'excalidraw',
+      ...overrides
+    })
+
+  it('flags Excalidraw edit tabs and opens them in the visual mode', () => {
+    const model = renderModel({
+      activeFile: excalidrawFile(),
+      fileContents: { '/repo/diagram.excalidraw': textContent({ content: '' }) }
+    })
+    expect(model.isExcalidraw).toBe(true)
+    expect(model.availableEditorToggleModes).toEqual(['source', 'rich'])
+    expect(model.mdViewMode).toBe('rich')
+    expect(model.effectiveToggleValue).toBe('rich')
+  })
+
+  it('keeps read-only Excalidraw tabs on raw text', () => {
+    const model = renderModel({
+      activeFile: excalidrawFile({ readOnly: true }),
+      fileContents: { '/repo/diagram.excalidraw': textContent({ content: '' }) }
+    })
+    expect(model.isExcalidraw).toBe(false)
+  })
+})
