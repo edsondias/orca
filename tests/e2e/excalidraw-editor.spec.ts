@@ -54,6 +54,15 @@ async function drawRectangle(page: Page): Promise<void> {
   await page.mouse.up()
 }
 
+// Why: parks the 400 ms commit debounce so only the unmount flush can save the draft.
+async function holdCommitDebounce(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const originalSetTimeout = window.setTimeout.bind(window)
+    window.setTimeout = (handler: TimerHandler, timeout?: number, ...args: unknown[]) =>
+      originalSetTimeout(handler, timeout === 400 ? 60_000 : timeout, ...args)
+  })
+}
+
 test.describe('Excalidraw editor', () => {
   let directory = ''
 
@@ -106,14 +115,17 @@ test.describe('Excalidraw editor', () => {
     const filePath = path.join(directory, 'flush.excalidraw')
     await writeFile(filePath, EMPTY_SCENE, 'utf8')
     await openDrawing(orcaPage, context, filePath)
+    await holdCommitDebounce(orcaPage)
     await drawRectangle(orcaPage)
+    const readDraft = (): Promise<string> =>
+      orcaPage.evaluate(() => {
+        const state = window.__store!.getState()
+        return state.editorDrafts[state.activeFileId ?? ''] ?? ''
+      })
+    // Why: proves the debounce is parked, so the poll below cannot be satisfied by it.
+    expect(await readDraft()).not.toContain('"rectangle"')
     await orcaPage.getByRole('radio', { name: 'Source' }).click()
-    // Why: single read, no poll; only the unmount flush lands the draft before the 400 ms debounce.
-    const draft = await orcaPage.evaluate(() => {
-      const state = window.__store!.getState()
-      return state.editorDrafts[state.activeFileId ?? ''] ?? ''
-    })
-    expect(draft).toContain('"rectangle"')
+    await expect.poll(readDraft).toContain('"rectangle"')
     await expect(orcaPage.locator('.monaco-editor .view-lines')).toContainText('"rectangle"')
   })
 
