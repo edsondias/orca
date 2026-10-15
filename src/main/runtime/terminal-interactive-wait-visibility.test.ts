@@ -528,7 +528,16 @@ describe('terminal wait ownership', () => {
     runtime['getFreshExplicitAgentStatusForHandle'] = () => ({
       status: 'permission',
       updatedAt: 42,
-      stateStartedAt: 42
+      stateStartedAt: 42,
+      row: {
+        paneKey: 'tab-1:leaf-1',
+        state: 'blocked',
+        prompt: '',
+        agentType: 'codex',
+        connectionId: null,
+        receivedAt: 42,
+        stateStartedAt: 42
+      }
     })
     runtime['resolveAuthoritativeTerminalWaitPermission'] = () => null
     runtime.getTerminalAgentStatus = getStatus

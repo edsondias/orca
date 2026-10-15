@@ -83,6 +83,7 @@ export function createStructuredAttentionMobileDelivery(
         return
       }
       const scope = edge.type === 'prompt' ? edge.prompt.scope : edge.completion.scope
+      const sessionId = edge.type === 'prompt' ? edge.prompt.sessionId : edge.completion.sessionId
       const attentionKey = agentSessionAttentionKey(edge)
       const request: NotificationDispatchRequest = {
         source: 'agent-task-complete',
@@ -117,7 +118,9 @@ export function createStructuredAttentionMobileDelivery(
         ...(structuredAttentionOrigin(edge)
           ? { structuredOrigin: structuredAttentionOrigin(edge) }
           : {}),
-        agentState: news.agentState
+        agentState: news.agentState,
+        // Only a blocked session has a prompt a phone could answer.
+        ...(news.agentState === 'blocked' ? { promptRef: { kind: 'structured', sessionId } } : {})
       })
     },
     reconcile: deps.reconcile
