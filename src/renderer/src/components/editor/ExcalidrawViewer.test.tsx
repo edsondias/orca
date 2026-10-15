@@ -6,6 +6,7 @@ type MockElement = { id: string; version: number }
 type MockApi = {
   updateScene: ReturnType<typeof vi.fn>
   addFiles: ReturnType<typeof vi.fn>
+  history: { clear: ReturnType<typeof vi.fn> }
   getSceneElementsIncludingDeleted: () => MockElement[]
   getFiles: () => Record<string, unknown>
 }
@@ -36,6 +37,7 @@ const api: MockApi = {
     mock.sceneElements = scene.elements
   }),
   addFiles: vi.fn(),
+  history: { clear: vi.fn() },
   getSceneElementsIncludingDeleted: () => mock.sceneElements,
   getFiles: () => ({})
 }
@@ -54,7 +56,7 @@ vi.mock('@excalidraw/excalidraw', () => ({
     if (data?.appState === 'x') {
       throw new Error('Cannot restore this scene')
     }
-    return { elements: data?.elements ?? [], appState: {}, files: {} }
+    return { elements: data?.elements ?? [], appState: data?.appState ?? {}, files: {} }
   },
   serializeAsJSON: (elements: readonly MockElement[]) =>
     JSON.stringify({ type: 'excalidraw', elements })
@@ -189,6 +191,35 @@ describe('ExcalidrawViewer', () => {
     )
     emitChange([{ id: 'b', version: 5 }])
     expect(onDirtyStateHint).not.toHaveBeenCalled()
+  })
+
+  it('applies external scene settings and drops undo history on reload', () => {
+    const { view } = renderViewer()
+    emitChange([{ id: 'a', version: 1 }])
+    const settings = {
+      viewBackgroundColor: '#ffeeaa',
+      gridSize: 40,
+      gridStep: 4,
+      gridModeEnabled: true
+    }
+    const external = JSON.stringify({
+      type: 'excalidraw',
+      elements: [{ id: 'b', version: 5 }],
+      appState: { ...settings, zoom: { value: 3 } }
+    })
+    view.rerender(
+      <ExcalidrawViewer
+        content={external}
+        fileId="drawing-a"
+        onContentChange={vi.fn()}
+        onDirtyStateHint={vi.fn()}
+        onSave={vi.fn(async () => true)}
+      />
+    )
+    expect(api.updateScene).toHaveBeenCalledWith(
+      expect.objectContaining({ appState: settings, elements: [{ id: 'b', version: 5 }] })
+    )
+    expect(api.history.clear).toHaveBeenCalledTimes(1)
   })
 
   it('shows an error with a way to the source and never writes invalid files', () => {

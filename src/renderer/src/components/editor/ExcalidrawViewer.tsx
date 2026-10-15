@@ -165,11 +165,16 @@ export default function ExcalidrawViewer({
       setViewerState({ kind: 'error', message: result.error })
       return
     }
+    const { viewBackgroundColor, gridSize, gridStep, gridModeEnabled } = result.restored.appState
     api.addFiles(Object.values(result.restored.files))
+    // Why: these settings are saved with the scene; skipping them would overwrite the external change.
     api.updateScene({
       elements: result.restored.elements,
+      appState: { viewBackgroundColor, gridSize, gridStep, gridModeEnabled },
       captureUpdate: CaptureUpdateAction.NEVER
     })
+    // Why: undo must not step back into the scene the external change replaced.
+    api.history.clear()
     sceneVersionRef.current = getSceneVersion(api.getSceneElementsIncludingDeleted())
     fileCountRef.current = Object.keys(api.getFiles()).length
   }, [content, editing, viewerState.kind])
