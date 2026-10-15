@@ -127,6 +127,25 @@ describe('car session bridge', () => {
     await vi.waitFor(() => expect(h.deps.send).toHaveBeenCalledTimes(1))
   })
 
+  it('points a reply to a finished agent back to the phone without sending it', async () => {
+    const h = harness()
+    await h.bridge.start([fakeHost()])
+    h.emit({
+      type: 'notification',
+      source: 'agent-task-complete',
+      title: 'Claude · feat-login',
+      body: 'Done',
+      notificationId: 'n1',
+      notificationSeq: 8
+    })
+    await Promise.resolve()
+    h.reply({ conversationId: h.published.at(-1)!.id, text: 'thanks' })
+    await vi.waitFor(() =>
+      expect(h.published.at(-1)?.messages.at(-1)?.text).toBe('Reply to this one from your phone')
+    )
+    expect(h.deps.send).not.toHaveBeenCalled()
+  })
+
   it('ignores an Android Auto re-delivery of a reply that was already sent', async () => {
     const h = harness()
     await h.bridge.start([fakeHost()])

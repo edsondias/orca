@@ -6,6 +6,7 @@ export type CarConversation = {
   id: string
   title: string
   messages: CarMessage[]
+  // Whether a reply reaches a pending prompt; the car shows Reply on every conversation regardless.
   canReply: boolean
 }
 export type CarReplyEvent = { conversationId: string; text: string }

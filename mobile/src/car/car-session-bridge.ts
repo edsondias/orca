@@ -91,12 +91,10 @@ export function createCarSessionBridge(deps: Deps) {
       return
     }
     if (!prompt) {
-      publish(
-        conversations.appendOrcaMessage(
-          conversationId,
-          carReplyReceipt({ kind: 'prompt-changed' }) ?? ''
-        )
-      )
+      const outcome = conversations.hadTerminalPrompt(conversationId)
+        ? ({ kind: 'prompt-changed' } as const)
+        : ({ kind: 'reply-from-phone' } as const)
+      publish(conversations.appendOrcaMessage(conversationId, carReplyReceipt(outcome) ?? ''))
       return
     }
     conversations.appendMyMessage(conversationId, text)

@@ -58,6 +58,8 @@ function conversationIdFor(hostId: string, event: CarNotificationEvent): string 
 export function createCarConversationStore(now: () => number) {
   const conversations = new Map<string, CarConversation>()
   const pending = new Map<string, CarPendingPrompt>()
+  // Conversations that ever carried a terminal prompt; a later reply there means the prompt moved on.
+  const terminalPromptIds = new Set<string>()
 
   const append = (id: string, message: CarMessage): CarConversation | null => {
     const current = conversations.get(id)
@@ -80,6 +82,9 @@ export function createCarConversationStore(now: () => number) {
       const agentState = event.agentState ?? 'blocked'
       // The subject comes from the same hook row as the fence, so the car never reads a different prompt.
       const menu = ref?.kind === 'terminal' ? carPromptMenu(ref.permission, agentState) : null
+      if (ref?.kind === 'terminal') {
+        terminalPromptIds.add(id)
+      }
       const text =
         event.source === 'agent-exited'
           ? CAR_COPY.agentExited
@@ -121,6 +126,7 @@ export function createCarConversationStore(now: () => number) {
     appendMyMessage: (id: string, text: string) =>
       append(id, { sender: 'me', text, timestamp: now() }),
     pendingPrompt: (id: string) => pending.get(id) ?? null,
+    hadTerminalPrompt: (id: string) => terminalPromptIds.has(id),
     clearPendingPrompt(id: string) {
       pending.delete(id)
       const current = conversations.get(id)
@@ -132,6 +138,7 @@ export function createCarConversationStore(now: () => number) {
     clear() {
       conversations.clear()
       pending.clear()
+      terminalPromptIds.clear()
     }
   }
 }

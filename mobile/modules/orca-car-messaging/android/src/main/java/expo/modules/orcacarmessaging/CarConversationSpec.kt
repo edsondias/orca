@@ -15,10 +15,11 @@ const val NOTIFICATION_ICON_RESOURCE = "notification_icon"
 internal fun smallIconResource(notificationIconId: Int, launcherIconId: Int): Int =
   if (notificationIconId != 0) notificationIconId else launcherIconId
 
-internal fun carActionSpecs(canReply: Boolean): List<CarActionSpec> = buildList {
-  if (canReply) add(CarActionSpec(CarActionKind.REPLY, remoteInputCount = 1, showsUserInterface = false))
-  add(CarActionSpec(CarActionKind.MARK_AS_READ, remoteInputCount = 0, showsUserInterface = false))
-}
+// Android Auto drops a conversation without a semantic reply action, so read-only ones offer it too; JS answers with a receipt.
+internal fun carActionSpecs(): List<CarActionSpec> = listOf(
+  CarActionSpec(CarActionKind.REPLY, remoteInputCount = 1, showsUserInterface = false),
+  CarActionSpec(CarActionKind.MARK_AS_READ, remoteInputCount = 0, showsUserInterface = false)
+)
 
 // Android Auto requires one PendingIntent per conversation and action, identical across updates.
 internal fun replyRequestCode(conversationId: String): Int = ("reply:$conversationId").hashCode()

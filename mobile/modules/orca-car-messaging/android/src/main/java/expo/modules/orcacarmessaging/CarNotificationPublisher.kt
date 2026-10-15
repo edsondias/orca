@@ -13,7 +13,7 @@ import androidx.core.app.Person
 import androidx.core.app.RemoteInput
 
 data class CarMessageData(val sender: String, val text: String, val timestamp: Long)
-data class CarConversationData(val id: String, val title: String, val messages: List<CarMessageData>, val canReply: Boolean)
+data class CarConversationData(val id: String, val title: String, val messages: List<CarMessageData>)
 
 internal fun carSmallIcon(context: Context): Int {
   val monochrome = context.resources.getIdentifier(NOTIFICATION_ICON_RESOURCE, "drawable", context.packageName)
@@ -46,7 +46,7 @@ class CarNotificationPublisher(private val context: Context) {
       .setStyle(style)
       .setGroup(CAR_GROUP)
       .setCategory(NotificationCompat.CATEGORY_MESSAGE)
-    for (spec in carActionSpecs(conversation.canReply)) {
+    for (spec in carActionSpecs()) {
       when (spec.kind) {
         CarActionKind.REPLY -> builder.addAction(replyAction(conversation.id))
         CarActionKind.MARK_AS_READ -> builder.addInvisibleAction(markReadAction(conversation.id))

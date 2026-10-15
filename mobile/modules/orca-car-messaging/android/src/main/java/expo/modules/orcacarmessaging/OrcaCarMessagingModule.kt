@@ -79,7 +79,7 @@ class OrcaCarMessagingModule : Module() {
     val messages = (raw["messages"] as? List<Map<String, Any?>>).orEmpty().map {
       CarMessageData(it["sender"] as String, it["text"] as String, (it["timestamp"] as Number).toLong())
     }
-    return CarConversationData(raw["id"] as String, raw["title"] as String, messages, raw["canReply"] as Boolean)
+    return CarConversationData(raw["id"] as String, raw["title"] as String, messages)
   }
 
   companion object {
