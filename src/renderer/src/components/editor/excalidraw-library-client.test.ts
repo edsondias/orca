@@ -1,7 +1,9 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  flushExcalidrawLibrarySave,
   loadExcalidrawLibrary,
+  resetExcalidrawLibraryClientForTests,
   saveExcalidrawLibrary,
   shouldPersistLibrary
 } from './excalidraw-library-client'
@@ -9,7 +11,11 @@ import {
 const read = vi.fn<() => Promise<unknown[]>>()
 const write = vi.fn<(items: readonly unknown[]) => Promise<void>>()
 
+const DISK = [{ id: 'disk', status: 'unpublished' as const, elements: [], created: 1 }]
+const QUEUED = [...DISK, { id: 'new', status: 'unpublished' as const, elements: [], created: 2 }]
+
 beforeEach(() => {
+  resetExcalidrawLibraryClientForTests()
   vi.useFakeTimers()
   read.mockReset()
   write.mockReset().mockResolvedValue(undefined)
@@ -47,6 +53,34 @@ describe('Excalidraw library client', () => {
     await vi.advanceTimersByTimeAsync(500)
     expect(write).toHaveBeenCalledTimes(1)
     expect(write).toHaveBeenCalledWith(latest)
+  })
+
+  it('returns the latest queued library instead of re-reading stale disk', async () => {
+    read.mockResolvedValue(DISK)
+    await loadExcalidrawLibrary()
+    saveExcalidrawLibrary(QUEUED)
+    await expect(loadExcalidrawLibrary()).resolves.toEqual(QUEUED)
+    expect(read).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not let an echo of the latest library cancel a pending write', async () => {
+    read.mockResolvedValue(DISK)
+    await loadExcalidrawLibrary()
+    saveExcalidrawLibrary(QUEUED)
+    await vi.advanceTimersByTimeAsync(300)
+    saveExcalidrawLibrary(structuredClone(QUEUED))
+    await vi.advanceTimersByTimeAsync(200)
+    expect(write).toHaveBeenCalledTimes(1)
+    expect(write).toHaveBeenCalledWith(QUEUED)
+  })
+
+  it('writes a pending library at once when flushed', async () => {
+    saveExcalidrawLibrary(QUEUED)
+    flushExcalidrawLibrarySave()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(write).toHaveBeenCalledWith(QUEUED)
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(write).toHaveBeenCalledTimes(1)
   })
 
   it('never lets an empty library replace one this session has not seen', () => {

@@ -25,6 +25,7 @@ import { useAppStore } from '@/store'
 import { installEditorSaveShortcut } from './editor-shortcuts'
 import { parseExcalidrawFile } from './excalidraw-file-parse'
 import {
+  flushExcalidrawLibrarySave,
   loadExcalidrawLibrary,
   saveExcalidrawLibrary,
   shouldPersistLibrary
@@ -133,6 +134,8 @@ export default function ExcalidrawViewer({
     libraryHadItemsRef.current = true
     saveExcalidrawLibrary(items)
   }, [])
+
+  useEffect(() => flushExcalidrawLibrarySave, [])
 
   useEffect(() => {
     if (content === lastSeenContentRef.current) {

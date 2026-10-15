@@ -11,6 +11,7 @@ type MockApi = {
 }
 type MockExcalidrawProps = {
   theme?: string
+  initialData?: { libraryItems?: Promise<unknown[]> }
   excalidrawAPI?: (api: MockApi) => void
   onChange?: (elements: MockElement[], appState: object, files: Record<string, unknown>) => void
   onLibraryChange?: (items: unknown[]) => void
@@ -75,6 +76,7 @@ vi.mock('./editor-shortcuts', () => ({
 }))
 
 import ExcalidrawViewer from './ExcalidrawViewer'
+import { resetExcalidrawLibraryClientForTests } from './excalidraw-library-client'
 
 const SCENE = JSON.stringify({ type: 'excalidraw', elements: [{ id: 'a', version: 1 }] })
 const UNRESTORABLE_SCENE = '{"type":"excalidraw","appState":"x"}'
@@ -101,7 +103,14 @@ function emitChange(elements: MockElement[]): void {
   })
 }
 
+const LIBRARY_ITEM = { id: 'shape', status: 'unpublished', elements: [], created: 1 }
+const libraryRead = vi.fn<() => Promise<unknown[]>>()
+const libraryWrite = vi.fn<(items: readonly unknown[]) => Promise<void>>()
+
 beforeEach(() => {
+  resetExcalidrawLibraryClientForTests()
+  libraryRead.mockResolvedValue([])
+  libraryWrite.mockResolvedValue(undefined)
   vi.useFakeTimers()
   mock.props = null
   mock.sceneElements = []
@@ -109,10 +118,7 @@ beforeEach(() => {
   Object.defineProperty(window, 'api', {
     configurable: true,
     value: {
-      excalidrawLibrary: {
-        read: vi.fn(async () => []),
-        write: vi.fn(async () => undefined)
-      }
+      excalidrawLibrary: { read: libraryRead, write: libraryWrite }
     }
   })
 })
@@ -223,6 +229,76 @@ describe('ExcalidrawViewer', () => {
       vi.advanceTimersByTime(1000)
     })
     expect(onContentChange).not.toHaveBeenCalled()
+  })
+
+  it('does not mistake its own committed text for an external change', () => {
+    const { view, onContentChange, onDirtyStateHint, onSave } = renderViewer()
+    emitChange([{ id: 'a', version: 1 }])
+    emitChange([{ id: 'a', version: 2 }])
+    act(() => {
+      vi.advanceTimersByTime(400)
+    })
+    const committed = JSON.stringify({ type: 'excalidraw', elements: [{ id: 'a', version: 2 }] })
+    expect(onContentChange).toHaveBeenCalledWith(committed)
+    view.rerender(
+      <ExcalidrawViewer
+        content={committed}
+        fileId="drawing-a"
+        onContentChange={onContentChange}
+        onDirtyStateHint={onDirtyStateHint}
+        onSave={onSave}
+      />
+    )
+    expect(api.updateScene).not.toHaveBeenCalled()
+  })
+
+  it('keeps a pending drawing over an external change that arrives mid-debounce', () => {
+    const { view, onContentChange, onDirtyStateHint, onSave } = renderViewer()
+    emitChange([{ id: 'a', version: 1 }])
+    emitChange([{ id: 'a', version: 2 }])
+    const external = JSON.stringify({ type: 'excalidraw', elements: [{ id: 'b', version: 5 }] })
+    view.rerender(
+      <ExcalidrawViewer
+        content={external}
+        fileId="drawing-a"
+        onContentChange={onContentChange}
+        onDirtyStateHint={onDirtyStateHint}
+        onSave={onSave}
+      />
+    )
+    expect(api.updateScene).not.toHaveBeenCalled()
+    act(() => {
+      vi.advanceTimersByTime(400)
+    })
+    expect(onContentChange).toHaveBeenCalledTimes(1)
+    expect(onContentChange).toHaveBeenCalledWith(
+      JSON.stringify({ type: 'excalidraw', elements: [{ id: 'a', version: 2 }] })
+    )
+  })
+
+  it('does not rewrite the library when Excalidraw echoes the loaded items on mount', async () => {
+    libraryRead.mockResolvedValue([LIBRARY_ITEM])
+    renderViewer()
+    await act(async () => {
+      const loaded = (await mock.props?.initialData?.libraryItems) ?? []
+      mock.props?.onLibraryChange?.(loaded)
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000)
+    })
+    expect(libraryWrite).not.toHaveBeenCalled()
+  })
+
+  it('writes a pending library change when the viewer closes', async () => {
+    const { view } = renderViewer()
+    act(() => {
+      mock.props?.onLibraryChange?.([LIBRARY_ITEM])
+    })
+    view.unmount()
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(libraryWrite).toHaveBeenCalledWith([LIBRARY_ITEM])
   })
 
   it('follows the Orca theme', () => {
