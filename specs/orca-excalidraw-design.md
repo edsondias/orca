@@ -1,7 +1,7 @@
 # Editor Excalidraw nativo no Orca
 
 Data: 15/10/2026.
-Status: design aprovado em conversa, aguardando revisão do texto escrito.
+Status: implementado na branch feat/excalidraw-editor (15/10/2026).
 Branch: `feat/excalidraw-editor`, criada a partir da `main`.
 ADR: [docs/adr/0002-editor-excalidraw-nativo.md](../docs/adr/0002-editor-excalidraw-nativo.md).
 Épico: [specs/epics/EP-02-editor-excalidraw.md](epics/EP-02-editor-excalidraw.md).
