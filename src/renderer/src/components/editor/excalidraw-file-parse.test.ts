@@ -21,7 +21,7 @@ describe('parseExcalidrawFile', () => {
   })
 
   it('accepts a file saved with a UTF-8 byte order mark', () => {
-    expect(parseExcalidrawFile(`﻿${JSON.stringify(scene)}`)).toEqual({ ok: true, scene })
+    expect(parseExcalidrawFile(`\uFEFF${JSON.stringify(scene)}`)).toEqual({ ok: true, scene })
   })
 
   it('accepts a scene without elements', () => {

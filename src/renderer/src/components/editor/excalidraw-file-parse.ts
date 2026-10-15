@@ -8,7 +8,7 @@ const NOT_A_SCENE = 'Not an Excalidraw scene: expected "type": "excalidraw" and 
 
 /** Empty files are new drawings; anything else must be a scene, so the viewer never overwrites foreign JSON. */
 export function parseExcalidrawFile(text: string): ExcalidrawFileParse {
-  const body = text.replace(/^﻿/, '')
+  const body = text.replace(/^\uFEFF/, '')
   if (body.trim() === '') {
     return { ok: true, scene: null }
   }
