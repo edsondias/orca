@@ -85,9 +85,7 @@ export function createCarReplyRouter(deps: Deps) {
           accept.forget(dedupeKey)
           return { kind: 'unverifiable' }
         case 'disconnected':
-          accept.forget(dedupeKey)
-          return { kind: 'rejected' }
-        default:
+        case 'failed':
           accept.forget(dedupeKey)
           return { kind: 'rejected' }
       }
