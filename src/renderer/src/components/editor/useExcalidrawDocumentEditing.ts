@@ -37,6 +37,12 @@ export function useExcalidrawDocumentEditing({
     onContentChangeRef.current = onContentChange
     onDirtyStateHintRef.current = onDirtyStateHint
   }, [content, onContentChange, onDirtyStateHint])
+  // Why: once the file moves past our commit, a later write of the same text is external.
+  useLayoutEffect(() => {
+    if (content !== lastCommittedRef.current) {
+      lastCommittedRef.current = null
+    }
+  }, [content])
 
   const flush = useCallback((): string => {
     if (timerRef.current !== null) {

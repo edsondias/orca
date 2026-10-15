@@ -80,6 +80,19 @@ describe('Excalidraw document editing', () => {
     expect(hook.result.current.isOwnContent('edited elsewhere')).toBe(false)
   })
 
+  it('forgets its committed text once the file moves past it', () => {
+    const { hook } = setup('saved')
+    act(() => {
+      hook.result.current.queueSceneChange(() => 'A')
+      hook.result.current.flush()
+    })
+    hook.rerender({ content: 'A' })
+    expect(hook.result.current.isOwnContent('A')).toBe(true)
+    hook.rerender({ content: 'B' })
+    hook.rerender({ content: 'A' })
+    expect(hook.result.current.isOwnContent('A')).toBe(false)
+  })
+
   it('lets save and tab close flush through the pending editor registry', () => {
     const { hook, onContentChange } = setup()
     act(() => {
