@@ -76,6 +76,7 @@ export const RPC_SUBSCRIPTION_SITES: readonly RpcSubscriptionSite[] = [
   {
     file: 'src/car/car-notification-stream.ts',
     method: 'notifications.subscribe',
+    release: 'ready-id',
     coverage: { kind: 'unwritten-scenario' }
   },
   {

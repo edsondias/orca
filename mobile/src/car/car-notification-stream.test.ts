@@ -44,15 +44,13 @@ describe('subscribeToCarNotifications', () => {
     expect(onEvent).toHaveBeenCalledWith({ type: 'notification' })
   })
 
-  it('closes the host stream with the ready subscription id on dispose', () => {
+  it('leaves the host release to the transport on dispose', () => {
     const f = fakeClient()
     const dispose = subscribeToCarNotifications(f.client, () => {})
     f.emit({ type: 'ready', subscriptionId: 's1' })
     dispose()
     expect(f.unsubscribe).toHaveBeenCalled()
-    expect(f.sendRequest).toHaveBeenCalledWith('notifications.unsubscribe', {
-      subscriptionId: 's1'
-    })
+    expect(f.sendRequest).not.toHaveBeenCalled()
   })
 })
 
