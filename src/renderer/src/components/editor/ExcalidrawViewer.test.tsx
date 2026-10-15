@@ -13,7 +13,11 @@ type MockExcalidrawProps = {
   theme?: string
   initialData?: { libraryItems?: Promise<unknown[]> }
   excalidrawAPI?: (api: MockApi) => void
-  onChange?: (elements: MockElement[], appState: object, files: Record<string, unknown>) => void
+  onChange?: (
+    elements: MockElement[],
+    appState: Record<string, unknown>,
+    files: Record<string, unknown>
+  ) => void
   onLibraryChange?: (items: unknown[]) => void
 }
 
