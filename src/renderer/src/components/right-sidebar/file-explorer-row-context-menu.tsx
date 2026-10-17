@@ -7,6 +7,7 @@ import {
   File,
   FilePlus,
   Files,
+  FolderOpen,
   FolderPlus,
   Globe,
   ListCollapse,
@@ -21,13 +22,25 @@ import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
-  ContextMenuShortcut
+  ContextMenuShortcut,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger
 } from '@/components/ui/context-menu'
 import { useAppStore } from '@/store'
 import { useShortcutLabel } from '@/hooks/useShortcutLabel'
 import { detectLanguage } from '@/lib/language-detect'
 import { openFileInBrowserTab } from '@/lib/file-preview'
 import { isLocalPathOpenBlocked, showLocalPathOpenBlockedToast } from '@/lib/local-path-open-guard'
+import { OpenInApplicationIcon } from '@/lib/open-in-app-catalog'
+import { getLocalFileManagerLabel } from '@/lib/local-file-manager-label'
+import { NO_OPEN_IN_APPLICATIONS } from '@/lib/open-in-application-selection'
+import {
+  getOpenInEntryAvailability,
+  getWorktreeOpenInEntries,
+  openOpenInAppsSettings,
+  openWorktreePath
+} from '@/components/sidebar/WorktreeOpenInMenu'
 import { translate } from '@/i18n/i18n'
 import type { FileExplorerRowProps } from './FileExplorerRow'
 import {
@@ -120,6 +133,14 @@ export function FileExplorerRowContextMenu({
 }: FileExplorerRowContextMenuProps): React.JSX.Element {
   const openMarkdownPreview = useAppStore((s) => s.openMarkdownPreview)
   const activeWorktreeId = useAppStore((s) => s.activeWorktreeId)
+  const settings = useAppStore((s) => s.settings)
+  const openInApplications = useAppStore(
+    (s) => s.settings?.openInApplications ?? NO_OPEN_IN_APPLICATIONS
+  )
+  const openInEntries = React.useMemo(
+    () => getWorktreeOpenInEntries(openInApplications, getLocalFileManagerLabel()),
+    [openInApplications]
+  )
   const copyPathShortcutLabel = useShortcutLabel('fileExplorer.copyPath')
   const copyRelativePathShortcutLabel = useShortcutLabel('fileExplorer.copyRelativePath')
   const findInFolderShortcutLabel = useShortcutLabel('sidebar.search.toggle')
@@ -149,6 +170,12 @@ export function FileExplorerRowContextMenu({
   const handleCopyFile = useCallback(() => {
     void copyFileToOsClipboard(node, connectionId)
   }, [connectionId, node])
+  const handleOpenIn = useCallback(
+    (target: 'file-manager' | 'external-editor', command?: string) => {
+      void openWorktreePath({ target, worktreePath: node.path, connectionId, command })
+    },
+    [connectionId, node.path]
+  )
 
   return (
     <ContextMenuContent
@@ -285,6 +312,45 @@ export function FileExplorerRowContextMenu({
           ) : null}
         </ContextMenuItem>
       )}
+      <ContextMenuSub>
+        <ContextMenuSubTrigger>
+          <FolderOpen />
+          {translate('auto.components.sidebar.WorktreeOpenInMenu.8009ab69a6', 'Open in')}
+        </ContextMenuSubTrigger>
+        <ContextMenuSubContent className="w-52">
+          {openInEntries.map((entry) => {
+            const availability = getOpenInEntryAvailability(entry, settings, connectionId)
+            return (
+              <ContextMenuItem
+                key={entry.id}
+                onSelect={() => handleOpenIn(entry.target, entry.command)}
+                disabled={availability.disabled}
+              >
+                {entry.target === 'file-manager' ? (
+                  <FolderOpen />
+                ) : entry.command ? (
+                  <OpenInApplicationIcon application={{ command: entry.command }} size={14} />
+                ) : (
+                  <ExternalLink />
+                )}
+                <span className="min-w-0 truncate">{entry.label}</span>
+                {availability.metadata ? (
+                  <span className="ml-auto shrink-0 text-[11px] text-muted-foreground">
+                    {availability.metadata}
+                  </span>
+                ) : null}
+              </ContextMenuItem>
+            )
+          })}
+          <ContextMenuSeparator />
+          <ContextMenuItem onSelect={openOpenInAppsSettings}>
+            {translate(
+              'auto.components.sidebar.WorktreeOpenInMenu.1417fd8380',
+              'Customize apps...'
+            )}
+          </ContextMenuItem>
+        </ContextMenuSubContent>
+      </ContextMenuSub>
       <ContextMenuItem
         onSelect={() => {
           const state = useAppStore.getState()
