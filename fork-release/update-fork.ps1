@@ -127,7 +127,9 @@ try {
     Invoke-Checked git @('commit', '--no-edit')
     Write-Host 'Merge pendente concluído.'
   }
-  if (Get-Git @('status', '--porcelain', '--untracked-files=no')) {
+  # Lockfiles ficam de fora: o pnpm install abaixo os regenera e commita.
+  $dirty = @(Get-Git @('status', '--porcelain', '--untracked-files=no') | Where-Object { $_ -and $_.Substring(3) -notin $Lockfiles })
+  if ($dirty) {
     throw "Há mudanças não commitadas em $Root; faça commit ou descarte antes de rodar."
   }
 
