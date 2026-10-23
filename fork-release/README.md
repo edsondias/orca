@@ -1,6 +1,6 @@
 # Atualização do fork
 
-Este processo leva cada nova versão lançada do `stablyai/orca` para o fork, junta as mudanças locais e compila o instalador do Windows e o APK do Android.
+Este processo leva cada nova versão lançada do `stablyai/orca` para o fork, junta as mudanças locais e compila o app do Windows (sem instalador) e o APK do Android.
 A decisão está registrada em `docs/adr/0004-atualizacao-do-fork.md`.
 
 ## Onde roda
@@ -23,7 +23,7 @@ O script faz, em ordem:
 2. Lê a última versão marcada como "Latest" no GitHub do upstream e busca só essa tag.
 3. Faz o merge do pai da tag, depois da `main` e depois do modo carro, pulando o que já estiver incluído.
 4. Roda `pnpm install` na raiz e em `mobile/` (com o layout hoisted) e faz commit dos lockfiles, se mudarem.
-5. Compila o desktop com `build:desktop` (que inclui o typecheck) e empacota com o electron-builder, sem publicar.
+5. Compila o desktop com `build:desktop` (que inclui o typecheck) e empacota com `electron-builder --dir`, que gera só a pasta `win-unpacked`, sem instalador e sem publicar.
 6. Regenera `mobile/android` com `expo prebuild --clean` e roda `gradlew assembleRelease`.
 7. Grava `dist/fork-release.json` com a tag, a versão, o commit e os arquivos gerados.
 
@@ -54,8 +54,7 @@ Quando o upstream passar para `1.5.0`, o auto-update passa a oferecer o oficial,
 
 ## Arquivos gerados
 
-- `dist/orca-windows-setup.exe`: instalador do Windows.
-- `dist/win-unpacked/Orca.exe`: o app sem instalar.
+- `dist/win-unpacked/Orca.exe`: o app, para rodar direto sem instalar. Feche o Orca instalado antes, porque a trava de instância única repassa a abertura para ele.
 - `dist/orca-mobile-<versão>.apk`: APK de release, assinado com a chave de debug e com o mesmo pacote do app oficial (`com.stably.orca.mobile`). Se o app da Play Store estiver instalado, desinstale-o antes.
 - `tmp/fork-release-<data>.log`: o log completo da execução.
 

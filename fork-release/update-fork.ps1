@@ -2,7 +2,7 @@
 <#
 .SYNOPSIS
 Atualiza a branch fork/release com a última versão lançada do stablyai/orca,
-junta as branches locais e compila o instalador do Windows e o APK do Android.
+junta as branches locais e compila o app do Windows (win-unpacked) e o APK do Android.
 
 .DESCRIPTION
 Rode sempre a partir da worktree da branch fork/release. Se um merge parar em
@@ -182,12 +182,12 @@ try {
     try {
       Invoke-Checked pnpm @('run', 'build:desktop')
       Invoke-Checked pnpm @('run', 'ensure:electron-runtime')
-      Invoke-Checked pnpm @('exec', 'electron-builder', '--config', 'config/electron-builder.config.cjs', '--win', '--publish', 'never')
+      # --dir gera só o win-unpacked: o build roda direto do Orca.exe, sem instalador.
+      Invoke-Checked pnpm @('exec', 'electron-builder', '--config', 'config/electron-builder.config.cjs', '--win', '--dir', '--publish', 'never')
     } finally {
       Invoke-Checked git @('checkout', '--', 'package.json')
     }
-    $artifacts.installer = 'dist/orca-windows-setup.exe'
-    $artifacts.unpacked = 'dist/win-unpacked/Orca.exe'
+    $artifacts.desktop = 'dist/win-unpacked/Orca.exe'
   }
 
   if (-not $SkipMobile) {
