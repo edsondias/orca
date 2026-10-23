@@ -77,6 +77,7 @@ const baseProps = {
   isMarkdown: false,
   isCsv: false,
   isNotebook: false,
+  isExcalidraw: false,
   hasEditorToggle: false,
   availableEditorToggleModes: [],
   effectiveToggleValue: 'edit',
@@ -164,5 +165,19 @@ describe('EditorPanelHeader', () => {
         isMarkdown: true
       })
     ).not.toContain('data-artifact-publish')
+  })
+
+  it('labels the rich mode of an Excalidraw tab "Visual"', () => {
+    const html = renderHeader({
+      isDiffSurface: false,
+      isExcalidraw: true,
+      hasEditorToggle: true,
+      availableEditorToggleModes: ['source', 'rich'],
+      effectiveToggleValue: 'rich'
+    })
+
+    expect(html).toMatch(/role="radio"[^>]*aria-label="Visual"/)
+    expect(html).toContain('aria-label="Source"')
+    expect(html).not.toContain('aria-label="Rich Editor"')
   })
 })

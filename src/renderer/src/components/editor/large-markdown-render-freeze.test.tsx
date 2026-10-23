@@ -113,6 +113,7 @@ function renderPreviewTab(content: string) {
     resolvedLanguage: 'markdown',
     isMarkdown: true,
     isMermaid: false,
+    isExcalidraw: false,
     isCsv: false,
     isNotebook: false,
     mdViewMode: 'rich' as const,

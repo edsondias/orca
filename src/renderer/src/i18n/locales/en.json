@@ -13351,7 +13351,8 @@
           },
           "FileExplorerBackgroundMenu": {
             "3b5e2dcb8d": "New Folder",
-            "21fe46ed36": "New File"
+            "21fe46ed36": "New File",
+            "e113b99f4c": "New Excalidraw Drawing"
           },
           "FileExplorerRow": {
             "addc01145f": "Delete",
@@ -14780,6 +14781,17 @@
             "scanning": "Scanning {{value0}}",
             "reading": "Reading {{value0}} files",
             "scanned": "Scanned {{value0}}"
+          },
+          "file": {
+            "explorer": {
+              "row": {
+                "context": {
+                  "menu": {
+                    "aab3194d85": "New Excalidraw Drawing"
+                  }
+                }
+              }
+            }
           }
         }
       },
@@ -16113,7 +16125,8 @@
           "ac3bb87913": "Edit",
           "0d193dc03c": "Preview",
           "aff15f94f5": "Rich Editor",
-          "4d6ccb7ba6": "Source"
+          "4d6ccb7ba6": "Source",
+          "f2ca20453a": "Visual"
         },
         "ImageDiffViewer": {
           "a651be62b0": "Modified",
@@ -16695,6 +16708,10 @@
         },
         "useMarkdownDocuments": {
           "listFailed": "Failed to list Markdown documents."
+        },
+        "ExcalidrawViewer": {
+          "361dee5208": "This drawing could not be opened.",
+          "01669bb639": "Open Source"
         }
       },
       "diff": {

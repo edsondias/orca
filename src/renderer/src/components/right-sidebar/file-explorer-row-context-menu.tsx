@@ -11,6 +11,7 @@ import {
   Globe,
   ListCollapse,
   Pencil,
+  PenTool,
   Search,
   SquareTerminal,
   Trash2
@@ -45,6 +46,7 @@ import {
   shouldShowViewFileAction
 } from './file-explorer-row-action-visibility'
 import { copyFileToOsClipboard, downloadRemoteFile } from './file-explorer-row-file-transfer'
+import { FileExplorerRowOpenInSubMenu } from './file-explorer-row-open-in-submenu'
 
 const isMac = navigator.userAgent.includes('Mac')
 
@@ -156,6 +158,13 @@ export function FileExplorerRowContextMenu({
       <ContextMenuItem onSelect={() => onStartNew('file', targetDir, targetDepth)}>
         <FilePlus />
         {translate('auto.components.right.sidebar.FileExplorerRow.37c875d827', 'New File')}
+      </ContextMenuItem>
+      <ContextMenuItem onSelect={() => onStartNew('excalidraw', targetDir, targetDepth)}>
+        <PenTool />
+        {translate(
+          'auto.components.right.sidebar.file.explorer.row.context.menu.aab3194d85',
+          'New Excalidraw Drawing'
+        )}
       </ContextMenuItem>
       <ContextMenuItem onSelect={() => onStartNew('folder', targetDir, targetDepth)}>
         <FolderPlus />
@@ -275,6 +284,7 @@ export function FileExplorerRowContextMenu({
           ) : null}
         </ContextMenuItem>
       )}
+      <FileExplorerRowOpenInSubMenu path={node.path} owner={revealOwner} />
       <ContextMenuItem
         disabled={revealBlocked}
         onSelect={() => void revealInFileManager(node.path, revealOwner)}

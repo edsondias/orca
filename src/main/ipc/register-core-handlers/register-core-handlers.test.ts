@@ -57,6 +57,7 @@ const {
   registerHostedReviewHandlersMock,
   registerExportHandlersMock,
   registerCodexConfigSyncHandlersMock,
+  registerExcalidrawLibraryHandlersMock,
   registerOnboardingHandlersMock,
   registerDashboardPopoutHandlersMock,
   registerWorkspaceSpaceWindowHandlersMock,
@@ -128,6 +129,7 @@ const {
   registerHostedReviewHandlersMock: vi.fn(),
   registerExportHandlersMock: vi.fn(),
   registerCodexConfigSyncHandlersMock: vi.fn(),
+  registerExcalidrawLibraryHandlersMock: vi.fn(),
   registerOnboardingHandlersMock: vi.fn(),
   registerDashboardPopoutHandlersMock: vi.fn(),
   registerWorkspaceSpaceWindowHandlersMock: vi.fn(),
@@ -161,6 +163,10 @@ vi.mock('../runtime-environments/runtime-environment-transport-routing', () => (
 
 vi.mock('../codex-config-sync', () => ({
   registerCodexConfigSyncHandlers: registerCodexConfigSyncHandlersMock
+}))
+
+vi.mock('../excalidraw-library', () => ({
+  registerExcalidrawLibraryHandlers: registerExcalidrawLibraryHandlersMock
 }))
 
 vi.mock('../onboarding', () => ({
@@ -588,6 +594,7 @@ describe('registerCoreHandlers', () => {
     expect(registerCodexConfigSyncHandlersMock).toHaveBeenCalledWith(
       codexAccounts.runtimeHomeService
     )
+    expect(registerExcalidrawLibraryHandlersMock).toHaveBeenCalledTimes(1)
     expect(registerPetHandlersMock).toHaveBeenCalled()
     expect(registerClaudeAccountHandlersMock).toHaveBeenCalledWith(claudeAccounts)
     expect(registerOpenCodeGoCredentialsHandlersMock).toHaveBeenCalledWith(rateLimits)
