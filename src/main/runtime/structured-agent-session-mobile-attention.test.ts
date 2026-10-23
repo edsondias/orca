@@ -97,7 +97,8 @@ describe('structured attention mobile delivery', () => {
         worktreeId: SCOPE.workspaceId,
         notificationId: key,
         attentionKey: key,
-        agentState: 'blocked'
+        agentState: 'blocked',
+        promptRef: { kind: 'structured', sessionId: 'session-1' }
       }
     ])
   })

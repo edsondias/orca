@@ -109,6 +109,7 @@ export abstract class OrcaRuntimeWithSerializeAgentPromptSubmission extends Orca
         this.confirmLegacyPtyAgentExit(ptyId, recoverCompletedHook, verdict === 'unverifiable')
       } else if (verdict === 'exited' && !recoverCompletedHook) {
         this.recordTerminalSideEffectFact(ptyId, { kind: 'agent-exited' })
+        this.announceAgentExitedToMobile(ptyId)
       } else if (verdict === 'live') {
         this.restoreDisprovedAgentExit(ptyId)
       } else {
@@ -217,6 +218,10 @@ export abstract class OrcaRuntimeWithSerializeAgentPromptSubmission extends Orca
       if (!keepOnSilence || answered) {
         if (!recoverCompletedHook) {
           this.recordTerminalSideEffectFact(ptyId, { kind: 'agent-exited' })
+          // Only with no presence verdict: a remote read of a non-agent foreground can still hide a live agent.
+          if (answered && !keepOnSilence) {
+            this.announceAgentExitedToMobile(ptyId)
+          }
         }
       } else {
         this.ptyTitleTrackersByPtyId.get(ptyId)?.tracker.restoreLastAgentExit()
@@ -247,14 +252,7 @@ export abstract class OrcaRuntimeWithSerializeAgentPromptSubmission extends Orca
     this.ptyForegroundAgent.delaySnapshot(ptyId, titleObservedAt, foregroundRefresh)
   }
 
-  protected getFreshExplicitAgentStatusForHandle(
-    handle: string,
-    paneKeyOverride?: string | null
-  ): {
-    status: NonNullable<RuntimeTerminalAgentStatus['status']>
-    updatedAt: number
-    stateStartedAt: number
-  } | null {
+  protected getFreshExplicitAgentStatusForHandle(handle: string, paneKeyOverride?: string | null) {
     return selectFreshExplicitAgentStatus({
       handle,
       paneKey: paneKeyOverride ?? this.getPaneKeyForTerminalHandle(handle),

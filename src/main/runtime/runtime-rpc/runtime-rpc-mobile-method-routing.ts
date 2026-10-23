@@ -190,6 +190,7 @@ export const EXECUTION_HOST_METHODS = [
   'terminal.multiplex',
   'terminal.read',
   'terminal.rename',
+  'terminal.replyToAgentPrompt',
   'terminal.send',
   'terminal.setDisplayMode',
   'terminal.subscribe',

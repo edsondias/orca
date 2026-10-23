@@ -150,6 +150,7 @@ function dispatchStructuredAttention(
           worktreeId: request.workspaceId,
           ...(executionHost ? { executionHost } : {}),
           paneKey: request.subjectKey ?? undefined,
+          agentSessionId: sessionId,
           ...getNotificationWorkspaceLabels(state, request.workspaceId, tab.label),
           notificationSourceId: notificationSourceForOwner(owner, state),
           terminalTitle: tab.label,

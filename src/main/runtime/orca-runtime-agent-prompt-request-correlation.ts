@@ -6,6 +6,13 @@ import type {
 } from './agent-prompt-submission-verification'
 import { verifyAgentPromptSubmission } from './agent-prompt-submission-verification'
 import { AgentPromptRequestCorrelation } from './agent-prompt-request-correlation'
+import { createHash } from 'node:crypto'
+import type { MobileNotificationPromptRef } from '../../shared/mobile-notification-prompt-ref'
+import type { AgentStatusIpcPayload } from '../../shared/agent-status-ipc-payload'
+import {
+  isTerminalAgentPromptFenceCurrent,
+  type TerminalAgentPromptFence
+} from '../../shared/terminal-agent-prompt-fence'
 
 export abstract class OrcaRuntimeWithAgentPromptRequestCorrelation extends OrcaRuntimeWithSerializeAgentPromptSubmission {
   private readonly agentPromptCorrelation = new AgentPromptRequestCorrelation()
@@ -27,6 +34,90 @@ export abstract class OrcaRuntimeWithAgentPromptRequestCorrelation extends OrcaR
       processIncarnation: incarnationId ?? `${this.runtimeId}:${ptyId}:${generation}`,
       generation
     }
+  }
+
+  getTerminalAgentPromptFence(handle: string): TerminalAgentPromptFence | null {
+    const binding = this.getTerminalPromptRequestBinding(handle)
+    const activity = this.getAgentPromptActivity(handle, binding.ptyId)
+    if (activity.status !== 'permission') {
+      return null
+    }
+    const hookRow = this.findHookAgentStatusForHandle(handle)
+    return {
+      generation: binding.generation,
+      permissionSequence: activity.permissionSequence,
+      blockedSince: hookRow?.stateStartedAt ?? null,
+      promptKey: hookRow ? hashHookPromptContent(hookRow) : null
+    }
+  }
+
+  resolveMobileNotificationPromptRef(paneKey: string): MobileNotificationPromptRef | undefined {
+    try {
+      const handle = this.getTerminalHandleForPaneKey(paneKey)
+      const fence = handle ? this.getTerminalAgentPromptFence(handle) : null
+      if (!handle || !fence) {
+        return undefined
+      }
+      const row = this.findHookAgentStatusForHandle(handle)
+      const permission = row
+        ? {
+            ...(row.interactivePrompt ? { interactivePrompt: row.interactivePrompt } : {}),
+            ...(row.lastAssistantMessage
+              ? { lastAssistantMessage: row.lastAssistantMessage.slice(0, 4000) }
+              : {})
+          }
+        : undefined
+      return {
+        kind: 'terminal',
+        terminalHandle: handle,
+        fence,
+        ...(permission ? { permission } : {})
+      }
+    } catch (error) {
+      // A pane without a writable PTY has no prompt to answer; anything else is a real bug.
+      if (error instanceof Error && error.message === 'terminal_not_writable') {
+        return undefined
+      }
+      throw error
+    }
+  }
+
+  async replyToTerminalAgentPrompt(
+    handle: string,
+    expected: TerminalAgentPromptFence,
+    action: { text: string; enter: boolean },
+    options: {
+      signal?: AbortSignal
+      reserveWrite?: (ptyId: string) => void
+      afterWrite?: (ptyId: string) => void | Promise<void>
+    } = {}
+  ): Promise<void> {
+    await this.sendTerminal(
+      handle,
+      { text: action.text, enter: action.enter },
+      {
+        signal: options.signal,
+        reserveWrite: options.reserveWrite,
+        afterWrite: options.afterWrite,
+        inputKind: 'driving',
+        // Distinguishes "Enter withheld after the text landed" from a clean pre-write refusal.
+        suffixFailureError: 'agent_prompt_changed_after_text',
+        // Checked at write time so a prompt that changed after the phone read it is never answered.
+        beforeWrite: () => {
+          if (
+            !isTerminalAgentPromptFenceCurrent(expected, this.getTerminalAgentPromptFence(handle))
+          ) {
+            throw new Error('agent_prompt_changed')
+          }
+        }
+      }
+    )
+  }
+
+  /** The fresh, floor-respecting hook row for the terminal, or null. */
+  protected findHookAgentStatusForHandle(handle: string): AgentStatusIpcPayload | null {
+    const { ptyId } = this.getTerminalPromptRequestBinding(handle)
+    return this.getFreshExplicitAgentStatusForPty(handle, ptyId)?.row ?? null
   }
 
   async observeTerminalAgentPrompt(
@@ -126,4 +217,12 @@ export abstract class OrcaRuntimeWithAgentPromptRequestCorrelation extends OrcaR
   protected clearAgentPromptCorrelationForPty(ptyId: string): void {
     this.agentPromptCorrelation.clearForPty(ptyId)
   }
+}
+
+// Hook blocks keep stateStartedAt across consecutive prompts, so the prompt content tells them apart.
+function hashHookPromptContent(row: AgentStatusIpcPayload): string {
+  return createHash('sha256')
+    .update(`${row.toolName ?? ''}|${row.toolInput ?? ''}|${row.interactivePrompt ?? ''}`)
+    .digest('hex')
+    .slice(0, 16)
 }

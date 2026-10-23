@@ -64,6 +64,10 @@ export type ConnectionDiagnosticCode =
   | 'direct-connected'
   | 'relay-credential-unavailable'
   | 'host-open-failed'
+  | 'car-session-started'
+  | 'car-session-ended'
+  | 'car-reply-delivered'
+  | 'car-reply-refused'
   // OTA web shell lifecycle; diagnostics only, never read as connection failures.
   | 'web-shell-flow'
   | 'web-shell-page'

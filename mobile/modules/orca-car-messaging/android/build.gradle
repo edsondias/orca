@@ -1,0 +1,21 @@
+apply plugin: 'com.android.library'
+
+group = 'expo.modules.orcacarmessaging'
+version = '0.0.1'
+
+def expoModulesCorePlugin = new File(project(':expo-modules-core').projectDir.absolutePath, 'ExpoModulesCorePlugin.gradle')
+apply from: expoModulesCorePlugin
+applyKotlinExpoModulesCorePlugin()
+useCoreDependencies()
+useExpoPublishing()
+useDefaultAndroidSdkVersions()
+
+android {
+  namespace 'expo.modules.orcacarmessaging'
+}
+
+dependencies {
+  // CarConnection reports whether Android Auto is projecting; core-ktx comes from expo-modules-core.
+  implementation 'androidx.car.app:app:1.4.0'
+  testImplementation 'junit:junit:4.13.2'
+}

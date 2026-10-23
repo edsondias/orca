@@ -1,4 +1,5 @@
 import { OrcaRuntimeWithScheduleWaitBlockedCheck } from '../wait/terminal-wait-blocked-checks'
+import { buildAgentExitedMobileNotification } from '../../agent-exited-mobile-notification'
 import type { PtyTransientFact } from '../../../providers/pty-provider-contract'
 import type {
   TerminalSideEffectBatch,
@@ -22,6 +23,7 @@ import type { TerminalTitleFactMeta } from '../../../../shared/terminal-output-s
 
 export abstract class OrcaRuntimeWithEmitDaemonPtyTransientFact extends OrcaRuntimeWithScheduleWaitBlockedCheck {
   protected abstract retirePtyAgentLaunchAuthority(ptyId: string): void
+  protected abstract getPtyLifecycleGeneration(ptyId: string): number
 
   /** A transient fact the daemon detected while it held scan authority —
    *  emitted through the same fact channel as byte-scanned facts. Arrives
@@ -89,6 +91,23 @@ export abstract class OrcaRuntimeWithEmitDaemonPtyTransientFact extends OrcaRunt
       return
     }
     this.emitTerminalSideEffectBatch(ptyId, [fact])
+  }
+
+  // Callers invoke this only for a confirmed exit verdict, never for lost contact or silence.
+  protected announceAgentExitedToMobile(ptyId: string): void {
+    const attribution = this.resolveTerminalSideEffectAttribution(ptyId)
+    const worktreeName = attribution.worktreeId
+      ? this.store?.getWorktreeMeta(attribution.worktreeId)?.displayName
+      : undefined
+    this.mobileNotifications.dispatch(
+      buildAgentExitedMobileNotification({
+        ptyId,
+        generation: this.getPtyLifecycleGeneration(ptyId),
+        attribution,
+        label: worktreeName || this.getTrackedDisplayTitleForPty(ptyId),
+        emittedAt: Date.now()
+      })
+    )
   }
 
   protected emitTerminalSideEffectBatch(

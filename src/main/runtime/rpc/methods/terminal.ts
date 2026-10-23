@@ -1,6 +1,7 @@
 import { TERMINAL_LIFECYCLE_METHODS } from './terminal/terminal-lifecycle-methods'
 import { TERMINAL_MULTIPLEX_METHODS } from './terminal/terminal-multiplex-method'
 import { TERMINAL_QUERY_METHODS } from './terminal/terminal-query-methods'
+import { TERMINAL_REPLY_TO_AGENT_PROMPT_METHODS } from './terminal/terminal-reply-to-agent-prompt-method'
 import { TERMINAL_SEND_METHODS } from './terminal/terminal-send-method'
 import { TERMINAL_SUBSCRIBE_METHODS } from './terminal/terminal-subscribe-method'
 import {
@@ -14,6 +15,7 @@ import { TERMINAL_VIEWER_COLORS_METHODS } from './terminal/terminal-viewer-color
 export const TERMINAL_METHODS = [
   ...TERMINAL_QUERY_METHODS,
   ...TERMINAL_SEND_METHODS,
+  ...TERMINAL_REPLY_TO_AGENT_PROMPT_METHODS,
   ...TERMINAL_LIFECYCLE_METHODS,
   ...TERMINAL_VIEWPORT_METHODS_BEFORE_STREAMS,
   ...TERMINAL_MULTIPLEX_METHODS,

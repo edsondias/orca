@@ -159,6 +159,8 @@ export function registerNotificationHandlers(store: Store, runtime?: OrcaRuntime
     readAuthorizationStatus: readNotificationAuthorizationStatus,
     recordDeliveryOutcome: recordNotificationDeliveryOutcome,
     deliverNative: deliverNativeNotification,
+    resolvePromptRef: (request) =>
+      request.paneKey ? runtime?.resolveMobileNotificationPromptRef(request.paneKey) : undefined,
     platform: process.platform,
     now: () => Date.now(),
     recordAnnounced: (request) => {

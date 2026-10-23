@@ -14,6 +14,7 @@ import { handleMockAccountRequest } from './mock-server-account-rpc'
 import { handleMockNativeChatRequest } from './mock-server-native-chat-scenario'
 import { handleMockSessionTabsRequest } from './mock-server-session-tabs-fixture'
 import { handleMockTerminalRequest } from './mock-server-terminal-stream'
+import { handleMockCarRequest } from './mock-server-car-scenario'
 import { createMockRepos, createMockWorktrees, readScenarioNumber } from './mobile-lag-scenario'
 
 const MOCK_REPO_COUNT = readScenarioNumber('MOCK_REPO_COUNT', 2)
@@ -125,6 +126,7 @@ export function handleRequest(
 
   // Each returns false for methods it does not own; first owner wins.
   if (
+    handleMockCarRequest(request, respond, success, error) ||
     handleMockGitRequest(request, respond, success) ||
     handleMockFilePreviewRequest(request, respond, success, error) ||
     handleMockAccountRequest(request, respond, success, error) ||

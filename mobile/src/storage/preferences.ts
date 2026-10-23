@@ -118,6 +118,20 @@ export async function saveTerminalAutocompleteEnabled(enabled: boolean): Promise
   await persistMirrored(AUTOCOMPLETE_KEY, value)
 }
 
+const CAR_MODE_KEY = 'orca:carModeEnabled'
+
+export async function loadCarModeEnabled(): Promise<boolean> {
+  try {
+    return (await AsyncStorage.getItem(CAR_MODE_KEY)) === 'true'
+  } catch {
+    return false
+  }
+}
+
+export async function saveCarModeEnabled(enabled: boolean): Promise<void> {
+  await AsyncStorage.setItem(CAR_MODE_KEY, String(enabled))
+}
+
 const TERMINAL_LIVE_INPUT_DISABLED_PREFIX = 'orca:terminalLiveInputDisabled:'
 
 export type DisabledTerminalLiveInputHandlesPreference = {

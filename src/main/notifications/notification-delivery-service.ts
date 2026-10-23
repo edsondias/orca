@@ -11,6 +11,7 @@ import type {
   NotificationDispatchResult,
   NotificationSettings
 } from '../../shared/notification-settings-types'
+import type { MobileNotificationPromptRef } from '../../shared/mobile-notification-prompt-ref'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { buildNotificationOptions } from '../ipc/notification-options'
 import { translateMain } from '../i18n/main-i18n'
@@ -34,6 +35,10 @@ export type NotificationDeliveryDependencies = {
     options: ReturnType<typeof buildNotificationOptions>,
     settings: NotificationSettings
   ) => NotificationDispatchResult | Promise<NotificationDispatchResult>
+  /** Resolves which pending prompt a phone reply would answer; undefined when none is fenceable. */
+  resolvePromptRef?: (
+    request: NotificationDispatchRequest
+  ) => MobileNotificationPromptRef | undefined
   platform: NodeJS.Platform
   now: () => number
   /** Told once per path that actually announced the request: a desktop banner shown, or a mobile alert sent. */
@@ -51,6 +56,18 @@ export function createNotificationDeliveryService(
 ): NotificationDeliveryService {
   const recentDesktopNotifications = new Map<string, number>()
   const recentMobileNotifications = new Map<string, number>()
+
+  // A failed lookup must never cost the user the notification itself.
+  const resolvePromptRefSafely = (
+    request: NotificationDispatchRequest
+  ): MobileNotificationPromptRef | undefined => {
+    try {
+      return deps.resolvePromptRef?.(request)
+    } catch (error) {
+      console.warn('[notifications] Could not resolve the prompt reference', error)
+      return undefined
+    }
+  }
 
   // Keyed news is announced once by its producer, so only its own repeat may collapse it.
   const dedupeKeyFor = (request: NotificationDispatchRequest): string =>
@@ -112,6 +129,13 @@ export function createNotificationDeliveryService(
             deps.now()
           )
         ) {
+          // Only a blocked session has a prompt a phone could answer.
+          const promptRef =
+            request.agentSessionId && request.agentState === 'blocked'
+              ? { kind: 'structured' as const, sessionId: request.agentSessionId }
+              : request.agentState === 'blocked' || request.agentState === 'waiting'
+                ? resolvePromptRefSafely(request)
+                : undefined
           deps.dispatchMobileNotification({
             type: 'notification',
             emittedAt: deps.now(),
@@ -126,7 +150,8 @@ export function createNotificationDeliveryService(
             // vs "finished" — and to stay silent while the agent is still working.
             ...(request.agentState ? { agentState: request.agentState } : {}),
             ...(request.attentionKey ? { attentionKey: request.attentionKey } : {}),
-            ...(request.structuredOrigin ? { structuredOrigin: request.structuredOrigin } : {})
+            ...(request.structuredOrigin ? { structuredOrigin: request.structuredOrigin } : {}),
+            ...(promptRef ? { promptRef } : {})
           })
           deps.recordAnnounced?.(request)
         }

@@ -11,6 +11,7 @@ import * as Notifications from 'expo-notifications'
 import * as Linking from 'expo-linking'
 import { colors } from '../src/theme/mobile-theme'
 import { OrcaLogo } from '../src/components/OrcaLogo'
+import { CarSessionBridgeMount } from '../src/car/car-session-bridge-mount'
 import { RpcClientProvider } from '../src/transport/client-context'
 import { getNotificationNavigationTarget } from '../src/notifications/notification-routing'
 import { useOpenNotificationRoute } from '../src/notifications/use-open-notification-route'
@@ -199,6 +200,7 @@ export default function RootLayout() {
 
   return (
     <RpcClientProvider>
+      <CarSessionBridgeMount />
       <View style={styles.root} onLayout={onNavigatorLayout}>
         <StatusBar style="light" />
         <SideSafeArea>
@@ -233,6 +235,7 @@ export default function RootLayout() {
             <Stack.Screen name="settings" options={{ headerShown: false }} />
             <Stack.Screen name="terminal-settings" options={{ headerShown: false }} />
             <Stack.Screen name="native-chat-settings" options={{ headerShown: false }} />
+            <Stack.Screen name="car-settings" options={{ headerShown: false }} />
             <Stack.Screen name="browser-settings" options={{ headerShown: false }} />
             <Stack.Screen name="voice-settings" options={{ headerShown: false }} />
             <Stack.Screen name="notifications" options={{ headerShown: false }} />

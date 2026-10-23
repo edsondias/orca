@@ -46,6 +46,8 @@ export type NotificationDispatchRequest = {
   executionHost?: `runtime:${string}`
   /** Stable `${tabId}:${leafId}` terminal pane key for click-to-focus routing. */
   paneKey?: string
+  /** Structured chat session the notification reports, so a phone can answer it. */
+  agentSessionId?: string
   repoLabel?: string
   worktreeLabel?: string
   /** Legacy senders may still provide this; project labels are now always shown. */

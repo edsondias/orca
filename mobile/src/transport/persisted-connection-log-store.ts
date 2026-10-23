@@ -54,6 +54,23 @@ export function recordConnectionClientSessionStart(hostId: string): void {
   })
 }
 
+/** `detail` never carries reply text, only lengths and outcomes. */
+export function recordCarSessionLog(
+  hostId: string,
+  code: 'car-session-started' | 'car-session-ended' | 'car-reply-delivered' | 'car-reply-refused',
+  detail: string
+): void {
+  const now = Date.now()
+  connectionLogStore.append(hostId, {
+    id: `${code}-${now}`,
+    ts: now,
+    level: code === 'car-reply-refused' ? 'warn' : 'info',
+    code,
+    message: code,
+    detail
+  })
+}
+
 function storageKey(hostId: string): string {
   return `${STORAGE_PREFIX}${encodeURIComponent(hostId)}`
 }
