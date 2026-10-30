@@ -117,7 +117,6 @@ export function useFileExplorerInlineInput({
       }
       const name =
         inlineInput.type === 'excalidraw' ? toExcalidrawDrawingName(value.trim()) : value.trim()
-      // No-op if the user submitted the same name (e.g. blur without editing)
       if (inlineInput.type === 'rename' && name === inlineInput.existingName) {
         setInlineInput(null)
         return
@@ -230,7 +229,6 @@ export function useFileExplorerInlineInput({
               )
             }
           } catch (err) {
-            // Refresh the directory even on failure so the tree stays consistent
             await refreshDir(inlineInput.parentPath)
             toast.error(extractIpcErrorMessage(err, `Failed to create '${name}'.`))
           }

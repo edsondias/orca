@@ -1,4 +1,5 @@
 import { useAppStore } from '@/store'
+import type { ActivePluginCustomEditor } from '@/store/plugin-custom-editors'
 import type { MarkdownViewMode, OpenFile, PendingEditorReveal } from '@/store/slices/editor'
 import type { GitDiffResult } from '../../../../shared/git-diff-compare-types'
 import type { GitStatusEntry } from '../../../../shared/git-status-types'
@@ -16,6 +17,9 @@ import { toMonacoLanguage } from '@/lib/language-detect'
 import { useEditorConflictNavigation } from './useEditorConflictNavigation'
 import { useMarkdownDocuments } from './useMarkdownDocuments'
 import type { MarkdownRenderState } from './markdown-render-mode'
+
+// Retry is a user act: it may start a stopped WSL distro.
+const USER_RETRY = { wakeWslDistro: true }
 
 const noopCloseMarkdownTableOfContents = (): void => {}
 
@@ -51,6 +55,7 @@ export function EditorContent({
   isCsv,
   isNotebook,
   isExcalidraw,
+  customEditor = null,
   mdViewMode,
   inlineMarkdownRenderState,
   isChangesMode,
@@ -80,6 +85,7 @@ export function EditorContent({
   isCsv: boolean
   isNotebook: boolean
   isExcalidraw: boolean
+  customEditor?: ActivePluginCustomEditor | null
   mdViewMode: MarkdownViewMode
   inlineMarkdownRenderState: MarkdownRenderState | null
   isChangesMode: boolean
@@ -94,11 +100,11 @@ export function EditorContent({
   handleDirtyStateHint: (dirty: boolean) => void
   handleSave: (content: string) => Promise<boolean>
   handleSaveForFile: (file: OpenFile, content: string) => Promise<boolean>
-  reloadContent: (file: OpenFile) => void
+  reloadContent: (file: OpenFile, options?: { wakeWslDistro?: boolean }) => void
 }): React.JSX.Element {
   const editorViewStateKey =
     viewStateScopeId === activeFile.id
-      ? activeFile.filePath
+      ? activeFile.id
       : `${activeFile.filePath}::${viewStateScopeId}`
   const diffViewStateKey =
     viewStateScopeId === activeFile.id ? activeFile.id : `${activeFile.id}::${viewStateScopeId}`
@@ -109,10 +115,9 @@ export function EditorContent({
   // Why: only the single-pane edit path gets PDF scroll memory — diff and conflict review mount several viewers on one path.
   const pdfViewStateKey =
     viewStateScopeId === activeFile.id
-      ? `${activeFile.filePath}:pdf`
+      ? `${activeFile.id}:pdf`
       : `${activeFile.filePath}::${viewStateScopeId}:pdf`
-  // Why: the same absolute path can exist in different worktrees, paired
-  // runtimes, or SSH targets; durable PDF zoom must not cross those owners.
+  // Scope durable PDF zoom by owner: identical paths can belong to different worktrees or remote hosts.
   const pdfPreferenceKey = buildPdfScalePreferenceKey(activeFile)
   const monacoLanguage = toMonacoLanguage(resolvedLanguage)
   const reloadOpenCheckRunDetailsTab = useAppStore((state) => state.reloadOpenCheckRunDetailsTab)
@@ -202,7 +207,7 @@ export function EditorContent({
         <EditorFileLoadErrorView
           message={fileContent.loadError}
           code={fileContent.loadErrorCode}
-          onRetry={() => reloadContent(activeFile)}
+          onRetry={() => reloadContent(activeFile, USER_RETRY)}
         />
       )
     }
@@ -259,6 +264,7 @@ export function EditorContent({
         isCsv={isCsv}
         isNotebook={isNotebook}
         isExcalidraw={isExcalidraw}
+        customEditor={customEditor}
         mdViewMode={mdViewMode}
         inlineMarkdownRenderState={inlineMarkdownRenderState}
         isChangesMode={isChangesMode}

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { writeFileAtomically } from '../codex-accounts/fs-utils'
-import { isENOENT } from '../ipc/filesystem-path-containment'
+import { isENOENT } from '../ipc/filesystem/filesystem-path-containment'
 
 /** Same envelope as an exported `.excalidrawlib`, so the file can be imported elsewhere. */
 type ExcalidrawLibraryFile = {

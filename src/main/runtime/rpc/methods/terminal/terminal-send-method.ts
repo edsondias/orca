@@ -1,3 +1,4 @@
+import { isTerminalInputPaused, TerminalInputPausedError } from '../../../terminal-input-admission'
 import { assertLegacyAiVaultResumeCommandAllowed } from '../../../../ai-vault/structured-session-ownership'
 import { InvalidArgumentError, defineMethod } from '../../core'
 import { isTerminalQueryReply } from '../../../../../shared/terminal-query-reply'
@@ -8,7 +9,7 @@ import {
   assertTerminalSendExactPtyBinding,
   assertTerminalSendTextWithinLimit,
   getTerminalSendGuardRefusedReason,
-  isTerminalInputLockedForClient,
+  terminalInputSourceForClient,
   isTerminalSendGuardNotWritable,
   resolveMobileFloorClientId
 } from './terminal-input-delivery'
@@ -18,6 +19,17 @@ import {
   ensureUnsupportedTerminalPromptReceipt,
   observeReplayedTerminalPrompt
 } from './terminal-prompt-receipt'
+import { observeQuestionAnswerSend } from './terminal-send-question-answered'
+
+// Every refused send reports the same zero-byte result, with the guard's reason when it has one.
+function refusedSend(
+  handle: string,
+  refusedReason?: NonNullable<ReturnType<typeof getTerminalSendGuardRefusedReason>>
+) {
+  return {
+    send: { handle, accepted: false, bytesWritten: 0, ...(refusedReason ? { refusedReason } : {}) }
+  }
+}
 
 export const TERMINAL_SEND_METHODS = [
   defineMethod({
@@ -28,6 +40,7 @@ export const TERMINAL_SEND_METHODS = [
       params,
       {
         runtime,
+        caller,
         clientId,
         signal,
         orchestrationMutation,
@@ -36,6 +49,7 @@ export const TERMINAL_SEND_METHODS = [
         replayedMutationReceipt
       }
     ) => {
+      const inputSource = terminalInputSourceForClient(params.client, caller)
       await assertTerminalSendTextWithinLimit(params.text)
       await assertTerminalSendTextWithinLimit(params.resolvedLaunchDraft?.text)
       if (params.text) {
@@ -73,38 +87,27 @@ export const TERMINAL_SEND_METHODS = [
       if (replayObservation) {
         return replayObservation
       }
-      // Why: a stale handle must fail with terminal_handle_stale, not evaluate driver/lock state against the wrong PTY (#7718).
+      // Reject stale handles before evaluating driver/lock state on the wrong PTY (#7718).
       const leaf = runtime.resolveLiveLeafForHandle(params.terminal)
       const driver = leaf?.ptyId ? runtime.getDriver(leaf.ptyId) : null
       if (
         params.inputKind === 'query-reply' &&
         leaf?.ptyId &&
-        !runtime.isMobileTerminalQueryReplyAuthority(leaf.ptyId, queryReplyClientId!)
+        (!runtime.isMobileTerminalQueryReplyAuthority(leaf.ptyId, queryReplyClientId!) ||
+          !runtime.shouldForwardTerminalQueryReply(leaf.ptyId, params.text!))
       ) {
-        return {
-          send: {
-            handle: params.terminal,
-            accepted: false,
-            bytesWritten: 0
-          }
-        }
+        return refusedSend(params.terminal)
       }
-      if (leaf?.ptyId && isTerminalInputLockedForClient(runtime, leaf.ptyId, params.client)) {
-        return {
-          send: {
-            handle: params.terminal,
-            accepted: false,
-            bytesWritten: 0
-          }
-        }
+      if (leaf?.ptyId && isTerminalInputPaused(runtime, leaf.ptyId, inputSource)) {
+        return refusedSend(params.terminal)
       }
       if (
         leaf?.ptyId &&
+        inputSource === 'desktop' &&
         params.client?.type === 'desktop' &&
         params.claimViewport === true &&
         params.viewport &&
-        // Why: clients attach their viewport to every send, so a focus report or query reply
-        // would otherwise claim the PTY and start a resize war between two mirrors (#26469).
+        // Only deliberate input may claim viewport ownership; focus/query sends otherwise trigger resize wars (#26469).
         !(
           typeof params.text === 'string' &&
           isUntypedTerminalInput(params.text) &&
@@ -122,30 +125,18 @@ export const TERMINAL_SEND_METHODS = [
           'refresh',
           true
         )
-        // Why: a stream-less request can't safely create ownership, so never write at stale geometry.
-        if (!claim.updated || isTerminalInputLockedForClient(runtime, leaf.ptyId, params.client)) {
-          return {
-            send: {
-              handle: params.terminal,
-              accepted: false,
-              bytesWritten: 0
-            }
-          }
+        // Without a stream, sends cannot safely claim ownership; refuse stale geometry.
+        if (!claim.updated || isTerminalInputPaused(runtime, leaf.ptyId, inputSource)) {
+          return refusedSend(params.terminal)
         }
       }
       const hasText = typeof params.text === 'string' && params.text.length > 0
       const hasSuffix = params.enter === true || params.interrupt === true
       if (params.requireAgentStatus === 'sendable' && hasText && hasSuffix) {
-        // Why: guarded sends are two-phase; reject combined payload + submit so a guard flip can't cause partial delivery.
-        return {
-          send: {
-            handle: params.terminal,
-            accepted: false,
-            bytesWritten: 0
-          }
-        }
+        // Guarded sends are two-phase; combined payload/submit could partially deliver across a guard flip.
+        return refusedSend(params.terminal)
       }
-      // Why: recheck permission/no-agent state immediately before accepting the PTY write.
+      // Recheck permission and agent presence immediately before PTY acceptance.
       const assertSendPreconditions =
         params.requireAgentStatus === 'sendable'
           ? async (ptyId?: string): Promise<void> => {
@@ -154,9 +145,6 @@ export const TERMINAL_SEND_METHODS = [
                 handle: params.terminal,
                 assertWritable: () => {
                   assertTerminalSendExactPtyBinding(runtime, params.terminal, ptyId)
-                  if (ptyId && isTerminalInputLockedForClient(runtime, ptyId, params.client)) {
-                    throw new Error('terminal_guard_not_writable')
-                  }
                 }
               })
             }
@@ -166,26 +154,13 @@ export const TERMINAL_SEND_METHODS = [
           await assertSendPreconditions?.(leaf?.ptyId ?? undefined)
         } catch (error) {
           if (isTerminalSendGuardNotWritable(error)) {
-            return {
-              send: {
-                handle: params.terminal,
-                accepted: false,
-                bytesWritten: 0
-              }
-            }
+            return refusedSend(params.terminal)
           }
           const refusedReason = getTerminalSendGuardRefusedReason(error)
           if (!refusedReason) {
             throw error
           }
-          return {
-            send: {
-              handle: params.terminal,
-              accepted: false,
-              bytesWritten: 0,
-              refusedReason
-            }
-          }
+          return refusedSend(params.terminal, refusedReason)
         }
       }
       const mobileFloorClientId = resolveMobileFloorClientId(driver, params.client)
@@ -207,14 +182,16 @@ export const TERMINAL_SEND_METHODS = [
         params.interrupt !== true &&
         params.client?.type === 'desktop' &&
         (await runtime.isTerminalRunningSettledPromptAgent(params.terminal))
+      const answered = observeQuestionAnswerSend(params, runtime)
       let result
       let acceptedPromptCheckpoint: unknown
       try {
         result = useSettledAgentPrompt
           ? await runtime.sendTerminalAgentPrompt(params.terminal, params.text!, {
               inputKind: 'driving',
+              inputSource,
               beforeWrite,
-              signal,
+              observationSignal: signal,
               ...(orchestrationMutation
                 ? {
                     acceptQueued: true,
@@ -236,6 +213,7 @@ export const TERMINAL_SEND_METHODS = [
               },
               {
                 beforeWrite,
+                inputSource,
                 signal,
                 // Why: a wire write carries no provenance beyond a client's own query reply.
                 inputKind: params.inputKind === 'query-reply' ? 'query-reply' : 'driving',
@@ -250,23 +228,10 @@ export const TERMINAL_SEND_METHODS = [
         }
         const refusedReason = getTerminalSendGuardRefusedReason(error)
         if (refusedReason) {
-          return {
-            send: {
-              handle: params.terminal,
-              accepted: false,
-              bytesWritten: 0,
-              refusedReason
-            }
-          }
+          return refusedSend(params.terminal, refusedReason)
         }
-        if (isTerminalSendGuardNotWritable(error)) {
-          return {
-            send: {
-              handle: params.terminal,
-              accepted: false,
-              bytesWritten: 0
-            }
-          }
+        if (error instanceof TerminalInputPausedError || isTerminalSendGuardNotWritable(error)) {
+          return refusedSend(params.terminal)
         }
         throw error
       }
@@ -289,8 +254,8 @@ export const TERMINAL_SEND_METHODS = [
           result
         )
       }
-      // Why: deliberate mobile input takes the floor (drives `* → mobile{clientId}`); clientless sends fall back to the current mobile driver.
-      return { send: result }
+      // Deliberate mobile input claims its driver floor; clientless sends use the current mobile driver.
+      return { send: answered(result) }
     }
   })
 ]

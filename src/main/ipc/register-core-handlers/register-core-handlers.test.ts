@@ -150,7 +150,8 @@ vi.mock('electron', () => ({
   app: {
     getPath: getPathMock,
     once: vi.fn()
-  }
+  },
+  webContents: { fromId: () => undefined }
 }))
 
 vi.mock('../../shared/runtime-environment-store', () => ({
@@ -261,6 +262,8 @@ vi.mock('../workspace-ports', () => ({
   registerWorkspacePortHandlers: registerWorkspacePortHandlersMock
 }))
 
+vi.mock('../link-preview', () => ({ registerLinkPreviewHandlers: vi.fn() }))
+
 vi.mock('../localhost-worktree-labels', () => ({
   registerLocalhostWorktreeLabelHandlers: registerLocalhostWorktreeLabelHandlersMock
 }))
@@ -302,11 +305,11 @@ vi.mock('../emulator-video-stream', () => ({
   registerEmulatorVideoStreamHandlers: registerEmulatorVideoStreamHandlersMock
 }))
 
-vi.mock('../filesystem', () => ({
+vi.mock('../filesystem/filesystem', () => ({
   registerFilesystemHandlers: registerFilesystemHandlersMock
 }))
 
-vi.mock('../filesystem-watcher-handlers', () => ({
+vi.mock('../filesystem/watchers/filesystem-watcher-handlers', () => ({
   registerFilesystemWatcherHandlers: registerFilesystemWatcherHandlersMock
 }))
 
@@ -329,6 +332,14 @@ vi.mock('../wsl-host-handlers', () => ({
 
 vi.mock('../wsl-move-handlers', () => ({
   registerWslMoveHandlers: vi.fn()
+}))
+
+vi.mock('../wsl-move-orchestrator-wiring', () => ({
+  registerWslMoveOrchestrator: vi.fn()
+}))
+
+vi.mock('../wsl-drive-project-handlers', () => ({
+  registerWslDriveProjectHandlers: vi.fn()
 }))
 
 vi.mock('../ephemeral-vm', () => ({
@@ -634,7 +645,7 @@ describe('registerCoreHandlers', () => {
     })
     expect(registerEmulatorFrameStreamHandlersMock).toHaveBeenCalled()
     expect(registerEmulatorVideoStreamHandlersMock).toHaveBeenCalled()
-    expect(registerFilesystemHandlersMock).toHaveBeenCalledWith(store)
+    expect(registerFilesystemHandlersMock).toHaveBeenCalledWith(store, undefined)
     expect(registerRuntimeHandlersMock).toHaveBeenCalledWith(runtime)
     expect(registerRuntimeEnvironmentHandlersMock).toHaveBeenCalledWith(store)
     expect(registerEphemeralVmHandlersMock).toHaveBeenCalledWith(store, undefined)
@@ -717,8 +728,7 @@ describe('registerCoreHandlers', () => {
     )
   })
 
-  // Session history and terminal resume are not chats: the refusal chats get leaves them no host
-  // to check, and any other host failure still fails them.
+  // Chat refusal must not disable session history/resume; other ownership failures still propagate.
   it('serves session history while chats are refused', async () => {
     const aiVaultOptions = registeredAiVaultOptions
     expect(aiVaultOptions).toBeDefined()
@@ -763,8 +773,7 @@ describe('registerCoreHandlers', () => {
   })
 
   it('only registers IPC handlers once but always updates web contents id', () => {
-    // The first test already called registerCoreHandlers, so the module-level
-    // guard is now set. beforeEach reset all mocks, so call counts are 0.
+    // The module registration guard survived prior tests while mocks were reset.
     const store2 = { marker: 'store2' }
     const runtime2 = { marker: 'runtime2', getAgentBrowserBridge: () => null }
     const stats2 = { marker: 'stats2' }
@@ -791,16 +800,12 @@ describe('registerCoreHandlers', () => {
       42
     )
 
-    // Web contents ID should always be updated
     expect(setTrustedBrowserRendererWebContentsIdMock).toHaveBeenCalledWith(42)
     expect(setTrustedClipboardRendererWebContentsIdMock).toHaveBeenCalledWith(42)
     expect(setTrustedUIRendererWebContentsIdMock).toHaveBeenCalledWith(42)
-    // IPC handlers should NOT be registered again
     expect(registerCliHandlersMock).not.toHaveBeenCalled()
     expect(registerPreflightHandlersMock).not.toHaveBeenCalled()
     expect(registerBrowserHandlersMock).not.toHaveBeenCalled()
-    // Why: ipcMain.handle throws on duplicate channel registration, so the
-    // memory handler must not be wired up a second time on reactivation.
     expect(registerMemoryHandlersMock).not.toHaveBeenCalled()
   })
 })
