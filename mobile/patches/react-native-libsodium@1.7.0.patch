@@ -1,0 +1,13 @@
+diff --git a/android/build.gradle b/android/build.gradle
+--- a/android/build.gradle
++++ b/android/build.gradle
+@@ -66,7 +66,8 @@ android {
+         // correctly.
+         // see https://developer.android.com/ndk/guides/cpp-support#selecting_a_c_runtime
+         arguments "-DANDROID_STL=c++_shared",
+-                  "-DNODE_MODULES_DIR=${nodeModules}"
++                  // Windows backslashes read as CMake escapes ("Invalid character escape '\g'").
++                  "-DNODE_MODULES_DIR=${nodeModules.replace(File.separator, '/')}"
+       }
+     }
+   }
