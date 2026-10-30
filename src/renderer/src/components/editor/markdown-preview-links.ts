@@ -5,6 +5,7 @@ import {
 } from '../../../../shared/file-uri-path'
 import { isWindowsAbsolutePathLike } from '../../../../shared/cross-platform-path'
 import type { HttpLinkSourceOwner, OpenHttpLinkOptions } from '@/lib/http-link-routing'
+import { getRememberedRootRelativeImagePath } from './markdown-root-relative-image-path'
 
 function toFileUrl(filePath: string): string {
   return filesystemPathToFileUri(filePath)
@@ -132,6 +133,10 @@ export function resolveImageAbsolutePath(
 ): string | null {
   if (!rawSrc) {
     return null
+  }
+  const remembered = getRememberedRootRelativeImagePath(rawSrc, filePath)
+  if (remembered) {
+    return remembered
   }
 
   const resolved = resolveMarkdownPreviewHref(rawSrc, filePath)
