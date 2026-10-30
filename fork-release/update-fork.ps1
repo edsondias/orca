@@ -93,6 +93,35 @@ function Set-PackageVersion([string]$Version) {
   [IO.File]::WriteAllText($path, $stamped, [Text.UTF8Encoding]::new($false))
 }
 
+# Why: o upstream corta cada versão de uma branch de release própria, então o ancestral comum que o
+# Git calcula fica antes da versão já incorporada e reabre os cherry-picks e reverts dela.
+function Get-PreviousUpstreamBase {
+  if (-not (Test-Path $ManifestPath)) { return $null }
+  $previousTag = (Get-Content $ManifestPath -Raw | ConvertFrom-Json).upstreamTag
+  if (-not $previousTag -or $previousTag -eq $Tag) { return $null }
+  Invoke-Checked git @('fetch', '--no-tags', 'upstream', "+refs/tags/${previousTag}:refs/tags/${previousTag}")
+  $base = Get-Git @('rev-parse', "$previousTag^{commit}^")
+  if (-not (Test-Git @('merge-base', '--is-ancestor', $base, 'HEAD'))) { return $null }
+  Write-Host "Base do merge: $previousTag (versão anterior do upstream)."
+  return $base
+}
+
+# Merge com base escolhida; deixa MERGE_HEAD e MERGE_MSG para o commit, como um git merge faria.
+function Invoke-MergeOnBase([string]$Base, [string]$Ref, [string]$Message) {
+  & git -C $Root merge-recursive $Base -- HEAD $Ref
+  $exitCode = $LASTEXITCODE
+  $gitDir = Get-Git @('rev-parse', '--absolute-git-dir')
+  [IO.File]::WriteAllText((Join-Path $gitDir 'MERGE_HEAD'), "$(Get-Git @('rev-parse', $Ref))`n")
+  [IO.File]::WriteAllText((Join-Path $gitDir 'MERGE_MSG'), "$Message`n")
+  if ($exitCode -eq 0) {
+    & git -C $Root commit --no-edit
+    $exitCode = $LASTEXITCODE
+  } else {
+    & git -C $Root rerere | Out-Host
+  }
+  $global:LASTEXITCODE = $exitCode
+}
+
 function Format-Now { (Get-Date).ToUniversalTime().AddHours(-3).ToString('dd/MM/yyyy HH:mm') }
 
 New-Item -ItemType Directory -Force (Join-Path $Root 'tmp') | Out-Null
@@ -114,7 +143,7 @@ try {
   if (-not $Tag) { $Tag = (& gh release view -R $UpstreamRepo --json tagName -q .tagName) }
   if (-not $Tag) { throw "Não consegui ler a última versão de $UpstreamRepo pelo gh." }
   Invoke-Checked git @('fetch', '--no-tags', 'upstream', "+refs/tags/${Tag}:refs/tags/${Tag}")
-  # Why: a tag é a main deles mais um commit que só troca a versão; juntar o pai evita conflito na linha "version" a cada release.
+  # Why: o último commit da tag só troca a versão; juntar o pai evita conflito na linha "version" a cada release.
   $upstreamBase = Get-Git @('rev-parse', "$Tag^{commit}^")
   $version = Get-ForkVersion $Tag
   Write-Host "Upstream $Tag (base $($upstreamBase.Substring(0, 10))), versão do fork $version"
@@ -142,7 +171,12 @@ try {
       continue
     }
     Write-Host "$($source.Label): juntando..."
-    & git -C $Root merge --no-ff --no-edit -m "merge: $($source.Label) into $ReleaseBranch" $source.Ref
+    $previousBase = if ($source.IsUpstream) { Get-PreviousUpstreamBase }
+    if ($previousBase) {
+      Invoke-MergeOnBase $previousBase $source.Ref "merge: $($source.Label) into $ReleaseBranch"
+    } else {
+      & git -C $Root merge --no-ff --no-edit -m "merge: $($source.Label) into $ReleaseBranch" $source.Ref
+    }
     if ($LASTEXITCODE -ne 0) {
       # Lockfiles saem do lado que já tem o upstream mais novo; o pnpm install abaixo os regenera.
       $side = if ($source.IsUpstream) { '--theirs' } else { '--ours' }

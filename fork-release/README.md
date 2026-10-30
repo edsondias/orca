@@ -21,7 +21,10 @@ O script faz, em ordem:
 
 1. Confere o ambiente: Node 24 (troca pelo fnm se preciso), remove `CI`, procura o JDK 17 e confere `ANDROID_HOME`.
 2. Lê a última versão marcada como "Latest" no GitHub do upstream e busca só essa tag.
-3. Faz o merge do pai da tag, depois da `main` e depois do modo carro, pulando o que já estiver incluído.
+3. Faz o merge do pai da tag, depois da `main`, do modo carro e da correção de imagens, pulando o que já estiver incluído.
+   O merge do upstream usa como base a versão anterior gravada em `dist/fork-release.json`, e não o ancestral comum calculado pelo Git.
+   O upstream corta cada versão de uma branch de release própria, com cherry-picks e reverts que não voltam para a `main` deles.
+   Com o ancestral comum, esses commits reabrem a cada versão (na `v1.4.245` foram 101 conflitos). Com a versão anterior como base, só conflitam os arquivos que o fork alterou.
 4. Roda `pnpm install` na raiz e em `mobile/` (com o layout hoisted) e faz commit dos lockfiles, se mudarem.
 5. Compila o desktop com `build:desktop` (que inclui o typecheck) e empacota com `electron-builder --dir`, que gera só a pasta `win-unpacked`, sem instalador e sem publicar.
 6. Regenera `mobile/android` com `expo prebuild --clean` e roda `gradlew assembleRelease`.
