@@ -57,7 +57,7 @@ Quando o upstream passar para `1.5.0`, o auto-update passa a oferecer o oficial,
 
 ## Arquivos gerados
 
-- `dist/win-unpacked/Orca.exe`: o app, para rodar direto sem instalar. Feche o Orca instalado antes, porque a trava de instância única repassa a abertura para ele.
+- `dist/<versão>/win-unpacked/Orca.exe`: o app, para rodar direto sem instalar. Cada versão ganha a própria pasta, porque o Orca.exe aberto trava a pasta dele. Feche o Orca instalado antes, porque a trava de instância única repassa a abertura para ele.
 - `dist/orca-mobile-<versão>.apk`: APK de release, assinado com a chave de debug e com o mesmo pacote do app oficial (`com.stably.orca.mobile`). Se o app da Play Store estiver instalado, desinstale-o antes.
 - `tmp/fork-release-<data>.log`: o log completo da execução.
 

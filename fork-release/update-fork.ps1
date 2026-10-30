@@ -219,11 +219,12 @@ try {
       Invoke-Checked pnpm @('run', 'build:desktop')
       Invoke-Checked pnpm @('run', 'ensure:electron-runtime')
       # --dir gera só o win-unpacked: o build roda direto do Orca.exe, sem instalador.
-      Invoke-Checked pnpm @('exec', 'electron-builder', '--config', 'config/electron-builder.config.cjs', '--win', '--dir', '--publish', 'never')
+      # Uma pasta por versão, porque o Orca.exe da versão anterior costuma estar aberto e trava a pasta dele.
+      Invoke-Checked pnpm @('exec', 'electron-builder', '--config', 'config/electron-builder.config.cjs', "--config.directories.output=dist/$version", '--win', '--dir', '--publish', 'never')
     } finally {
       Invoke-Checked git @('checkout', '--', 'package.json')
     }
-    $artifacts.desktop = 'dist/win-unpacked/Orca.exe'
+    $artifacts.desktop = "dist/$version/win-unpacked/Orca.exe"
   }
 
   if (-not $SkipMobile) {
