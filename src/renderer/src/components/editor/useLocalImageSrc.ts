@@ -18,6 +18,11 @@ import {
   unpinLocalImageCache
 } from './local-image-src-cache'
 import { runtimeTargetEnvironmentId } from '@/runtime/runtime-client-target'
+import {
+  forgetRootRelativeImagePathsForTests,
+  getRootRelativeImagePathCandidates,
+  rememberRootRelativeImagePath
+} from './markdown-root-relative-image-path'
 
 export function getLocalImageCacheKey(
   absolutePath: string,
@@ -99,11 +104,15 @@ export function useLocalImageSrc(
     rawSrc && runtimeContext !== null && isExternalUrl(rawSrc) ? rawSrc : undefined
   // Key leases by semantic identity; equal rebuilt context objects must not revoke a still-displayed image URL.
   const cacheKey = getLocalImageSrcCacheKey(rawSrc, filePath, connectionId, runtimeContext, access)
-  const readImage = useEffectEvent((): Promise<string | null> => {
+  const readImage = useEffectEvent(async (): Promise<string | null> => {
     const absolutePath = rawSrc ? resolveImageAbsolutePath(rawSrc, filePath) : null
-    return absolutePath
-      ? loadLocalImageAbsolutePath(absolutePath, connectionId, runtimeContext, access)
-      : Promise.resolve(null)
+    if (!rawSrc || !absolutePath) {
+      return null
+    }
+    const url = await loadLocalImageAbsolutePath(absolutePath, connectionId, runtimeContext, access)
+    return (
+      url ?? loadRootRelativeImageFallback(rawSrc, filePath, connectionId, runtimeContext, access)
+    )
   })
 
   useEffect(() => {
@@ -184,7 +193,28 @@ export async function loadLocalImageSrc(
     return cached
   }
 
-  return loadLocalImageAbsolutePath(absolutePath, connectionId, runtimeContext, access)
+  const url = await loadLocalImageAbsolutePath(absolutePath, connectionId, runtimeContext, access)
+  return (
+    url ?? loadRootRelativeImageFallback(rawSrc, filePath, connectionId, runtimeContext, access)
+  )
+}
+
+/** Probe the document's folders for a `/`-rooted src the filesystem root didn't have. */
+async function loadRootRelativeImageFallback(
+  rawSrc: string,
+  filePath: string,
+  connectionId: string | null | undefined,
+  runtimeContext: LocalImageRuntimeContext | null | undefined,
+  access: LocalFileAccess | undefined
+): Promise<string | null> {
+  for (const candidate of getRootRelativeImagePathCandidates(rawSrc, filePath)) {
+    const url = await loadLocalImageAbsolutePath(candidate, connectionId, runtimeContext, access)
+    if (url) {
+      rememberRootRelativeImagePath(rawSrc, filePath, candidate)
+      return url
+    }
+  }
+  return null
 }
 
 export function loadLocalImageAbsolutePath(
@@ -240,6 +270,7 @@ export function loadLocalImageAbsolutePath(
 
 export function resetLocalImageSrcStateForTests(): void {
   resetLocalImageCacheState()
+  forgetRootRelativeImagePathsForTests()
 }
 
 export function invalidateLocalImageSrcCacheForTests(): void {

@@ -175,6 +175,15 @@ export function createRichMarkdownExtensions({
                     return
                   }
                   if (resolved) {
+                    // A `/`-rooted src may have resolved to another file than the lease pinned.
+                    releaseImageLease?.()
+                    releaseImageLease = acquireLocalImageSrcLease(
+                      src,
+                      fp,
+                      undefined,
+                      runtimeContext,
+                      access
+                    )
                     img.src = resolved
                     return
                   }
