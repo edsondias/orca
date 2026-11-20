@@ -17,7 +17,13 @@ param(
   [switch]$SkipDesktop,
   [switch]$SkipMobile,
   # Compila mesmo quando nada novo entrou desde o último build.
-  [switch]$Force
+  [switch]$Force,
+  # Rótulo da versão: X.Y.900-<Channel>.Z.
+  [string]$Channel = 'fork',
+  # Gera em dist/win-unpacked em vez de dist/<versão>/win-unpacked.
+  [switch]$FixedOutput,
+  # Envia a fork/release para o origin depois dos merges.
+  [switch]$Push
 )
 
 $ErrorActionPreference = 'Stop'
@@ -80,10 +86,10 @@ function Use-Jdk17 {
   $env:Path = "$($jdk.FullName)\bin;$env:Path"
 }
 
-function Get-ForkVersion([string]$UpstreamTag) {
+function Get-ForkVersion([string]$UpstreamTag, [string]$Label) {
   if ($UpstreamTag -notmatch '^v?(\d+)\.(\d+)\.(\d+)$') { throw "Tag fora do formato vX.Y.Z: $UpstreamTag" }
   # Why: patch 900 fica acima de qualquer 1.4.x oficial, então o auto-update não troca este build pelo oficial.
-  return "$($Matches[1]).$($Matches[2]).900-fork.$($Matches[3])"
+  return "$($Matches[1]).$($Matches[2]).900-$Label.$($Matches[3])"
 }
 
 function Set-PackageVersion([string]$Version) {
@@ -145,7 +151,7 @@ try {
   Invoke-Checked git @('fetch', '--no-tags', 'upstream', "+refs/tags/${Tag}:refs/tags/${Tag}")
   # Why: o último commit da tag só troca a versão; juntar o pai evita conflito na linha "version" a cada release.
   $upstreamBase = Get-Git @('rev-parse', "$Tag^{commit}^")
-  $version = Get-ForkVersion $Tag
+  $version = Get-ForkVersion $Tag $Channel
   Write-Host "Upstream $Tag (base $($upstreamBase.Substring(0, 10))), versão do fork $version"
 
   Write-Step 'Juntando upstream e branches locais'
@@ -211,20 +217,30 @@ try {
     $head = Get-Git @('rev-parse', 'HEAD')
   }
 
+  if ($Push) {
+    Write-Step "Enviando $ReleaseBranch para o origin"
+    Invoke-Checked git @('push', 'origin', $ReleaseBranch)
+  }
+
   $artifacts = [ordered]@{}
   if (-not $SkipDesktop) {
     Write-Step "Compilando o desktop $version (typecheck incluso)"
+    $outDir = if ($FixedOutput) { 'dist' } else { "dist/$version" }
+    $exe = Join-Path $Root "$outDir/win-unpacked/Orca.exe"
+    if ($FixedOutput -and (Get-Process -Name Orca -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $exe })) {
+      throw "Feche o $exe antes de compilar; ele trava a pasta win-unpacked."
+    }
     Set-PackageVersion $version
     try {
       Invoke-Checked pnpm @('run', 'build:desktop')
       Invoke-Checked pnpm @('run', 'ensure:electron-runtime')
       # --dir gera só o win-unpacked: o build roda direto do Orca.exe, sem instalador.
       # Uma pasta por versão, porque o Orca.exe da versão anterior costuma estar aberto e trava a pasta dele.
-      Invoke-Checked pnpm @('exec', 'electron-builder', '--config', 'config/electron-builder.config.cjs', "--config.directories.output=dist/$version", '--win', '--dir', '--publish', 'never')
+      Invoke-Checked pnpm @('exec', 'electron-builder', '--config', 'config/electron-builder.config.cjs', "--config.directories.output=$outDir", '--win', '--dir', '--publish', 'never')
     } finally {
       Invoke-Checked git @('checkout', '--', 'package.json')
     }
-    $artifacts.desktop = "dist/$version/win-unpacked/Orca.exe"
+    $artifacts.desktop = "$outDir/win-unpacked/Orca.exe"
   }
 
   if (-not $SkipMobile) {

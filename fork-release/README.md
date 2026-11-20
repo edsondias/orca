@@ -38,6 +38,10 @@ Outras opções:
 - `-Tag v1.4.238` usa uma versão específica em vez da "Latest".
 - `-Branches main,feat/android-auto-spec` troca as branches que entram.
 - `-SkipDesktop` ou `-SkipMobile` compila só uma das plataformas.
+- `-Channel dev` troca o rótulo da versão para `X.Y.900-dev.Z` (o padrão é `fork`).
+- `-FixedOutput` gera sempre em `dist/win-unpacked`, sobrescrevendo o build anterior; feche esse `Orca.exe` antes.
+- `-Push` envia a `fork/release` para o `origin` depois dos merges.
+- O comando `/atualizar-fork` do Claude Code roda o script com `-Channel dev -FixedOutput -Push`.
 
 ## Quando um merge para em conflito
 
