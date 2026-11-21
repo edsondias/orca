@@ -239,7 +239,6 @@ export function getEditorPanelRenderModel({
     isSvg: viewerLanguage === 'svg',
     isCsv: viewerLanguage === 'csv' || viewerLanguage === 'tsv',
     isNotebook: viewerLanguage === 'notebook',
-    isExcalidraw: viewerLanguage === 'excalidraw',
     // Preview reads disk; exclude deleted modified sides and historical commit snapshots that may not match it.
     canOpenPreview:
       canOpenWorkspaceFileBrowser &&

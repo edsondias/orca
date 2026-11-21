@@ -4,11 +4,7 @@ import { dirname } from '@/lib/path'
 import { cn } from '@/lib/class-names'
 import type { GitFileStatus } from '../../../../../../shared/git/status/git-status-types'
 import { FileExplorerRow } from './FileExplorerRow'
-import {
-  InlineInputRow,
-  type FileExplorerNewEntryKind,
-  type InlineInput
-} from '../mutations/file-explorer-inline-input-row'
+import { InlineInputRow, type InlineInput } from '../mutations/file-explorer-inline-input-row'
 import { STATUS_COLORS } from '../../../../lib/source-control/paths/git-path-decoration'
 import { shouldShowIgnoredDecoration } from '../../../../../../shared/git/status/git-path-decoration'
 import type { DirCache, FileExplorerOperationOwner, TreeNode } from '../tree/file-explorer-types'
@@ -46,7 +42,7 @@ type FileExplorerVirtualRowsProps = {
   onViewFile: (node: TreeNode) => void
   onContextMenuSelect: (node: TreeNode) => void
   onCopyPaths: (node: TreeNode, pathKind: 'absolute' | 'relative') => void
-  onStartNew: (type: FileExplorerNewEntryKind, parentPath: string, depth: number) => void
+  onStartNew: (type: 'file' | 'folder', parentPath: string, depth: number) => void
   onStartRename: (node: TreeNode) => void
   onDuplicate: (node: TreeNode) => void
   onAddFolderAsProject: (node: TreeNode) => void

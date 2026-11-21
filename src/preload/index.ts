@@ -69,7 +69,6 @@ import { cacheApi } from './api/github/cache-bridge'
 import { sessionApi } from './api/workspaces/session-bridge'
 import { updaterApi } from './api/updater/updater-bridge'
 import { docPreviewApi } from './api/document-preview/doc-preview-bridge'
-import { excalidrawLibraryApi } from './api/excalidraw-library-bridge'
 import { notebookApi } from './api/document-preview/notebook-bridge'
 import { fsApi } from './api/filesystem/fs-bridge'
 import { gitApi } from './api/source-control/git-bridge'
@@ -185,7 +184,6 @@ const api = {
   updater: updaterApi,
   docPreview: docPreviewApi,
   notebook: notebookApi,
-  excalidrawLibrary: excalidrawLibraryApi,
   fs: fsApi,
   git: gitApi,
   ui: uiApi,

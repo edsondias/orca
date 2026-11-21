@@ -1,6 +1,6 @@
 import React from 'react'
 import { conflictOverviewView } from '@/store/slices/editor/buffers/editor-buffer-conflict-overview'
-import { detectLanguage, toMonacoLanguage } from '../../../../../shared/editor-language/editor-language-detect'
+import { detectLanguage } from '../../../../../shared/editor-language/editor-language-detect'
 import { joinPath } from '@/lib/path'
 import { useAppStore } from '@/store/index'
 import type { OpenFile } from '@/store/slices/editor/types/open-file'
@@ -196,7 +196,7 @@ export function EditorConflictReviewSurface({
     }
 
     const selectedLanguage = detectLanguage(contentFile.relativePath)
-    const monacoLanguage = toMonacoLanguage(selectedLanguage)
+    const monacoLanguage = selectedLanguage === 'notebook' ? 'json' : selectedLanguage
     const selectedViewStateKey = `${contentFile.filePath}::${viewStateScopeId}:${viewStateKeySuffix}`
     const selectedContent = editBuffers[contentFile.id] ?? fileContent.content
     const editorViewStateId = readOnly

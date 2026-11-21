@@ -26,7 +26,6 @@ import type { OrcaUninstallApi } from './api/orca-uninstall/orca-uninstall-api'
 import type { CrashReportsApi, FeedbackApi } from './api/diagnostics/crash-report-api'
 import type { DashboardApi, TerminalPreviewApi } from './api/window-ui/dashboard-api'
 import type { DocPreviewApi } from './api/document-preview/doc-preview-api'
-import type { ExcalidrawLibraryApi } from './api/excalidraw-library-api'
 import type { EmulatorApi } from './api/emulator/emulator-api'
 import type { EphemeralVmApi } from './api/cloud-workspaces/ephemeral-vm-api'
 import type { ExportApi, FilesystemApi } from './api/filesystem/filesystem-api'
@@ -161,7 +160,6 @@ export type PreloadApi = {
   session: WorkspaceSessionApi['session']
   updater: UpdaterApi
   notebook: FilesystemApi['notebook']
-  excalidrawLibrary: ExcalidrawLibraryApi
   docPreview: DocPreviewApi['docPreview']
   stats: StatsApi
   memory: MemoryApi

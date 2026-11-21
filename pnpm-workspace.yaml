@@ -95,10 +95,6 @@ packageExtensions:
   remark-parse:
     dependencies:
       vfile: ^6.0.0
-  # @excalidraw/excalidraw's tunnel-rat imports react without declaring it.
-  tunnel-rat:
-    peerDependencies:
-      react: '*'
 
 overrides:
   dompurify@<3.4.17: 3.4.17

@@ -6,7 +6,6 @@ import type { OpenFile } from '@/store/slices/editor/types/open-file'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import EditorViewToggle, {
   CSV_VIEW_MODE_METADATA,
-  EXCALIDRAW_VIEW_MODE_METADATA,
   CUSTOM_EDITOR_SOURCE_METADATA,
   NOTEBOOK_VIEW_MODE_METADATA,
   SVG_VIEW_MODE_METADATA
@@ -36,7 +35,6 @@ type EditorPanelHeaderProps = {
   isMarkdown: boolean
   isCsv: boolean
   isNotebook: boolean
-  isExcalidraw: boolean
   isSvg?: boolean
   /** Titles of the file's plugin editors, by toggle value; empty when none apply. */
   customEditorTitles?: Readonly<Record<CustomEditorToggleValue, string>>
@@ -74,7 +72,6 @@ export function EditorPanelHeader({
   isMarkdown,
   isCsv,
   isNotebook,
-  isExcalidraw,
   isSvg = false,
   customEditorTitles = NO_CUSTOM_EDITOR_TITLES,
   hasEditorToggle,
@@ -134,11 +131,9 @@ export function EditorPanelHeader({
             ? NOTEBOOK_VIEW_MODE_METADATA
             : isSvg
               ? SVG_VIEW_MODE_METADATA
-              : isExcalidraw
-                ? EXCALIDRAW_VIEW_MODE_METADATA
-                : Object.keys(customEditorTitles).length > 0
-                  ? CUSTOM_EDITOR_SOURCE_METADATA
-                  : undefined
+              : Object.keys(customEditorTitles).length > 0
+                ? CUSTOM_EDITOR_SOURCE_METADATA
+                : undefined
       }
       customEditorTitles={customEditorTitles}
     />

@@ -8,7 +8,6 @@ import { ConflictBanner, ConflictPlaceholderView } from '../conflict-review/Conf
 import {
   CsvViewer,
   CsvPagedViewer,
-  ExcalidrawViewer,
   ImageViewer,
   IpynbViewer,
   MermaidViewer,
@@ -59,7 +58,6 @@ export function EditorEditFileSurface({
   isSvg = false,
   isCsv,
   isNotebook,
-  isExcalidraw,
   customEditor,
   mdViewMode,
   inlineMarkdownRenderState,
@@ -94,7 +92,6 @@ export function EditorEditFileSurface({
   isSvg?: boolean
   isCsv: boolean
   isNotebook: boolean
-  isExcalidraw: boolean
   customEditor?: ActivePluginCustomEditor | null
   mdViewMode: MarkdownViewMode
   inlineMarkdownRenderState: MarkdownRenderState | null
@@ -347,15 +344,6 @@ export function EditorEditFileSurface({
       onDirtyStateHint={activeFile.readOnly ? undefined : handleDirtyStateHint}
       onContentChange={activeFile.readOnly ? undefined : handleContentChange}
       onSave={activeFile.readOnly ? undefined : handleSave}
-    />
-  ) : isExcalidraw && mdViewMode === 'rich' ? (
-    <ExcalidrawViewer
-      key={activeFile.id}
-      content={currentContent}
-      fileId={activeFile.id}
-      onContentChange={handleContentChange}
-      onDirtyStateHint={handleDirtyStateHint}
-      onSave={handleSave}
     />
   ) : isNotebook && mdViewMode === 'rich' ? (
     <IpynbViewer

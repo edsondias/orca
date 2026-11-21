@@ -12,7 +12,7 @@ import {
 import { lazyWithRetry as lazy } from '@/app-shell/startup/lazy-with-retry'
 import { getConnectionIdForFile } from '@/lib/workspace/ownership/connection-context'
 import { editorTabFileAccess } from '@/lib/files/access/local-file-access'
-import { detectLanguage, toMonacoLanguage } from '../../../../../shared/editor-language/editor-language-detect'
+import { detectLanguage } from '../../../../../shared/editor-language/editor-language-detect'
 import { readRuntimeFileContent } from '@/runtime/files/reads/runtime-file-read-client'
 import {
   fileOwnerUnresolvedMessage,
@@ -108,7 +108,7 @@ export function ExternalFileChangeCompareDialog({
     access
   ])
 
-  const language = toMonacoLanguage(detectLanguage(file.relativePath))
+  const language = detectLanguage(file.relativePath)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

@@ -79,15 +79,6 @@ export const NOTEBOOK_VIEW_MODE_METADATA: Partial<Record<MarkdownViewMode, ViewM
   }
 }
 
-export const EXCALIDRAW_VIEW_MODE_METADATA: Partial<Record<MarkdownViewMode, ViewModeMetadata>> = {
-  rich: {
-    get label() {
-      return translate('auto.components.editor.EditorViewToggle.f2ca20453a', 'Visual')
-    },
-    icon: PenTool
-  }
-}
-
 export const SVG_VIEW_MODE_METADATA: Partial<Record<MarkdownViewMode, ViewModeMetadata>> = {
   rich: DEFAULT_VIEW_MODE_METADATA.preview
 }

@@ -14852,8 +14852,7 @@
           },
           "FileExplorerBackgroundMenu": {
             "3b5e2dcb8d": "New Folder",
-            "21fe46ed36": "New File",
-            "e113b99f4c": "New Excalidraw Drawing"
+            "21fe46ed36": "New File"
           },
           "FileExplorerRow": {
             "addc01145f": "Delete",
@@ -16318,17 +16317,6 @@
             "agentCheckedCount_other": "{{agent}}: {{settled}} of {{total}} history candidates checked",
             "historyRefreshed": "History refreshed"
           },
-          "file": {
-            "explorer": {
-              "row": {
-                "context": {
-                  "menu": {
-                    "aab3194d85": "New Excalidraw Drawing"
-                  }
-                }
-              }
-            }
-          },
           "run": {
             "source": {
               "control": {
@@ -17644,7 +17632,6 @@
           "0d193dc03c": "Preview",
           "aff15f94f5": "Rich Editor",
           "4d6ccb7ba6": "Source",
-          "f2ca20453a": "Visual",
           "bcaccaddf1": "Rich editor"
         },
         "ImageDiffViewer": {
@@ -18266,10 +18253,6 @@
         },
         "useMarkdownDocuments": {
           "listFailed": "Failed to list Markdown documents."
-        },
-        "ExcalidrawViewer": {
-          "361dee5208": "This drawing could not be opened.",
-          "01669bb639": "Open Source"
         },
         "ReviewNotesSendMenu": {
           "terminalGone": "Terminal is no longer available",

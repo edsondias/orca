@@ -22,8 +22,8 @@ const EXT_TO_LANGUAGE: Record<string, string> = {
   '.cjs': 'javascript',
   '.json': 'json',
   '.jsonc': 'json',
-  // Excalidraw scenes are JSON on disk; toMonacoLanguage shows their Source as JSON.
-  '.excalidraw': 'excalidraw',
+  // Excalidraw scenes are JSON documents; Source shows them as such.
+  '.excalidraw': 'json',
   // Dedicated jsonl coloring avoids whole-document JSON diagnostics flagging every record after the first.
   '.jsonl': 'jsonl',
   '.env': 'dotenv',
@@ -213,11 +213,6 @@ export function detectLanguage(filePath: string, content?: string): string {
     return FILENAME_LOWER_TO_LANGUAGE[lowerFilename]
   }
 
-  // Why: the compound name's last extension alone would read as plain JSON.
-  if (lowerFilename.endsWith('.excalidraw.json')) {
-    return 'excalidraw'
-  }
-
   const ext = extname(filename).toLowerCase()
   const lowerName = filename.toLowerCase()
   // Scoped dotenv names fall back to dotenv only when no specific extension matches.
@@ -232,9 +227,4 @@ export function detectLanguage(filePath: string, content?: string): string {
     return detectShebangLanguage(content) ?? 'plaintext'
   }
   return language
-}
-
-/** Monaco has no notebook or Excalidraw grammar; both are JSON on disk. */
-export function toMonacoLanguage(language: string): string {
-  return language === 'notebook' || language === 'excalidraw' ? 'json' : language
 }

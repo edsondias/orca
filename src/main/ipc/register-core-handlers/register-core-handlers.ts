@@ -68,7 +68,6 @@ import { registerOrcaProfileHandlers } from '../profiles/orca-profiles'
 import { registerCodexAccountHandlers } from '../accounts/codex-accounts'
 import { registerAgentHookHandlers } from '../agent-hooks/agent-hooks'
 import { registerCodexConfigSyncHandlers } from '../accounts/codex-config-sync'
-import { registerExcalidrawLibraryHandlers } from '../excalidraw-library'
 import { getPtyIdForPaneKey } from '../pty/pane/key-state'
 import { registerClaudeAccountHandlers } from '../accounts/claude-accounts'
 import { registerOpenCodeGoCredentialsHandlers } from '../accounts/opencode-go-credentials'
@@ -149,7 +148,6 @@ export async function registerCoreHandlers(
     registerCodexAccountHandlers(codexAccounts, () => store.getSettings())
     registerAgentHookHandlers(runtime, { getPtyIdForPaneKey })
     registerCodexConfigSyncHandlers(codexAccounts.runtimeHomeService)
-    registerExcalidrawLibraryHandlers()
     registerClaudeAccountHandlers(claudeAccounts)
     registerOpenCodeGoCredentialsHandlers(rateLimits)
     registerMiniMaxCredentialsHandlers(rateLimits)

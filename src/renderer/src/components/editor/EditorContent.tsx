@@ -19,7 +19,6 @@ import {
   type ReloadContentOptions
 } from './loading/editor-panel-content-types'
 import { buildFileViewPreferenceKey as buildPdfScalePreferenceKey } from './view-mode/file-view-preference-storage'
-import { toMonacoLanguage } from '../../../../shared/editor-language/editor-language-detect'
 import { useTranslate } from '@/i18n/use-translate'
 import { useEditorConflictNavigation } from './conflict-review/useEditorConflictNavigation'
 import { useMarkdownDocuments } from './markdown/documents/useMarkdownDocuments'
@@ -61,7 +60,6 @@ export function EditorContent({
   isSvg = false,
   isCsv,
   isNotebook,
-  isExcalidraw,
   customEditor = null,
   mdViewMode,
   inlineMarkdownRenderState,
@@ -92,7 +90,6 @@ export function EditorContent({
   isSvg?: boolean
   isCsv: boolean
   isNotebook: boolean
-  isExcalidraw: boolean
   customEditor?: ActivePluginCustomEditor | null
   mdViewMode: MarkdownViewMode
   inlineMarkdownRenderState: MarkdownRenderState | null
@@ -128,7 +125,7 @@ export function EditorContent({
       : `${activeFile.filePath}::${viewStateScopeId}:pdf`
   // Scope durable PDF zoom by owner: identical paths can belong to different worktrees or remote hosts.
   const pdfPreferenceKey = buildPdfScalePreferenceKey(activeFile)
-  const monacoLanguage = toMonacoLanguage(resolvedLanguage)
+  const monacoLanguage = resolvedLanguage === 'notebook' ? 'json' : resolvedLanguage
   const reloadOpenCheckRunDetailsTab = useAppStore((state) => state.reloadOpenCheckRunDetailsTab)
   const markdownDocuments = useMarkdownDocuments(activeFile, isMarkdown, mdViewMode, handleSave)
   const getConflictNavigation = useEditorConflictNavigation()
@@ -277,7 +274,6 @@ export function EditorContent({
         isSvg={isSvg}
         isCsv={isCsv}
         isNotebook={isNotebook}
-        isExcalidraw={isExcalidraw}
         customEditor={customEditor}
         mdViewMode={mdViewMode}
         inlineMarkdownRenderState={inlineMarkdownRenderState}

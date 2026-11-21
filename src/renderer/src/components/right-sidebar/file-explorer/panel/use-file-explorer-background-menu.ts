@@ -2,7 +2,7 @@ import type React from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import { useCallback, useState } from 'react'
 import { CLOSE_ALL_CONTEXT_MENUS_EVENT } from '@/lib/overlay-interaction/close-all-context-menus'
-import type { FileExplorerNewEntryKind, InlineInput } from '../mutations/file-explorer-inline-input-row'
+import type { InlineInput } from '../mutations/file-explorer-inline-input-row'
 
 type UseFileExplorerBackgroundMenuResult = {
   bgMenuOpen: boolean
@@ -21,7 +21,7 @@ export function useFileExplorerBackgroundMenu({
   displayDepth?: number
   worktreePath: string | null
   inlineInput: InlineInput | null
-  startNew: (type: FileExplorerNewEntryKind, parentPath: string, depth: number) => void
+  startNew: (type: 'file' | 'folder', parentPath: string, depth: number) => void
 }): UseFileExplorerBackgroundMenuResult {
   const [bgMenuOpen, setBgMenuOpen] = useState(false)
   const [bgMenuPoint, setBgMenuPoint] = useState({ x: 0, y: 0 })

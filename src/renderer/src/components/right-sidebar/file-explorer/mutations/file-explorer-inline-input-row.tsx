@@ -7,11 +7,9 @@ import {
 } from '@/lib/text-input/ime/ime-composition-keyboard-event'
 import type { TreeNode } from '../tree/file-explorer-types'
 
-export type FileExplorerNewEntryKind = 'file' | 'folder' | 'excalidraw'
-
 export type InlineInput = {
   parentPath: string
-  type: FileExplorerNewEntryKind | 'rename'
+  type: 'file' | 'folder' | 'rename'
   depth: number
   existingName?: string
   existingPath?: string

@@ -106,7 +106,6 @@ export function EditorPanelShell({
           isMarkdown={model.isMarkdown}
           isCsv={model.isCsv}
           isNotebook={model.isNotebook}
-          isExcalidraw={model.isExcalidraw}
           isSvg={model.isSvg}
           customEditorTitles={model.customEditorTitles}
           hasEditorToggle={model.hasEditorToggle}
@@ -150,7 +149,6 @@ export function EditorPanelShell({
           isSvg={model.isSvg}
           isCsv={model.isCsv}
           isNotebook={model.isNotebook}
-          isExcalidraw={model.isExcalidraw}
           customEditor={model.activeCustomEditor}
           mdViewMode={model.mdViewMode}
           inlineMarkdownRenderState={model.inlineMarkdownRenderState}
