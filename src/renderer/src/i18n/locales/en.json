@@ -12330,8 +12330,7 @@
           },
           "FileExplorerBackgroundMenu": {
             "3b5e2dcb8d": "New Folder",
-            "21fe46ed36": "New File",
-            "e113b99f4c": "New Excalidraw Drawing"
+            "21fe46ed36": "New File"
           },
           "FileExplorerRow": {
             "addc01145f": "Delete",
@@ -13738,17 +13737,6 @@
             "sourceMissing": "Transcript is no longer available",
             "metadataMatch": "Match in session metadata",
             "sourceActionsUnavailable": "The transcript source is unavailable."
-          },
-          "file": {
-            "explorer": {
-              "row": {
-                "context": {
-                  "menu": {
-                    "aab3194d85": "New Excalidraw Drawing"
-                  }
-                }
-              }
-            }
           }
         }
       },
@@ -15097,8 +15085,7 @@
           "ac3bb87913": "Edit",
           "0d193dc03c": "Preview",
           "aff15f94f5": "Rich Editor",
-          "4d6ccb7ba6": "Source",
-          "f2ca20453a": "Visual"
+          "4d6ccb7ba6": "Source"
         },
         "ImageDiffViewer": {
           "a651be62b0": "Modified",
@@ -15652,10 +15639,6 @@
           "a0af0198aa": "Large diffs are not rendered by default.",
           "c3d9f4a712": "This diff's size isn't known yet, so it loads on request.",
           "f7fa7a40d0": "Load diff"
-        },
-        "ExcalidrawViewer": {
-          "361dee5208": "This drawing could not be opened.",
-          "01669bb639": "Open Source"
         }
       },
       "diff": {

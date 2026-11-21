@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { detectLanguage, toMonacoLanguage } from './language-detect'
+import { detectLanguage } from './language-detect'
 
 describe('detectLanguage', () => {
   it('maps .vue files to the custom vue language id', () => {
@@ -140,20 +140,6 @@ describe('detectLanguage', () => {
       expect(detectLanguage(filePath)).toBe('plaintext')
     }
   )
-
-  it('maps Excalidraw scene files to the excalidraw language id', () => {
-    expect(detectLanguage('docs/architecture.excalidraw')).toBe('excalidraw')
-    expect(detectLanguage('C:\\docs\\ARCHITECTURE.EXCALIDRAW')).toBe('excalidraw')
-    expect(detectLanguage('docs/architecture.excalidraw.json')).toBe('excalidraw')
-    expect(detectLanguage('docs/Architecture.Excalidraw.JSON')).toBe('excalidraw')
-    expect(detectLanguage('docs/package.json')).toBe('json')
-  })
-
-  it('shows notebook and Excalidraw sources as JSON in Monaco', () => {
-    expect(toMonacoLanguage('notebook')).toBe('json')
-    expect(toMonacoLanguage('excalidraw')).toBe('json')
-    expect(toMonacoLanguage('typescript')).toBe('typescript')
-  })
 
   it('keeps .json/.jsonc on the built-in json language and unknown on plaintext', () => {
     expect(detectLanguage('config/settings.json')).toBe('json')

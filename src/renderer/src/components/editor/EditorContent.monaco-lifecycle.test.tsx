@@ -183,7 +183,6 @@ function props(activeFile: OpenFile, content: string) {
     isMermaid: false,
     isCsv: false,
     isNotebook: false,
-    isExcalidraw: false,
     mdViewMode: 'rich' as const,
     inlineMarkdownRenderState: null,
     isChangesMode: false,

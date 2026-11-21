@@ -44,13 +44,6 @@ describe('getMarkdownViewModes', () => {
       })
     ).toEqual(['source', 'rich'])
   })
-
-  it('gives Excalidraw tabs source and rich without Changes, defaulting to rich', () => {
-    const target = { language: 'excalidraw', mode: 'edit' as const }
-    expect(getEditorToggleModes(target)).toEqual(['source', 'rich'])
-    expect(getMarkdownViewModes(target)).toEqual(['source', 'rich'])
-    expect(getDefaultMarkdownViewMode(target)).toBe('rich')
-  })
 })
 
 describe('markdown preview helpers', () => {

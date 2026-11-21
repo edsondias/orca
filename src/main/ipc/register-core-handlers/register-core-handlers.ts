@@ -59,7 +59,6 @@ import { registerOrcaProfileHandlers } from '../orca-profiles'
 import { registerCodexAccountHandlers } from '../codex-accounts'
 import { registerAgentHookHandlers } from '../agent-hooks'
 import { registerCodexConfigSyncHandlers } from '../codex-config-sync'
-import { registerExcalidrawLibraryHandlers } from '../excalidraw-library'
 import { getPtyIdForPaneKey } from '../pty'
 import { registerClaudeAccountHandlers } from '../claude-accounts'
 import { registerMiniMaxCredentialsHandlers } from '../minimax-credentials'
@@ -150,7 +149,6 @@ export function registerCoreHandlers(
   registerCodexAccountHandlers(codexAccounts, () => store.getSettings())
   registerAgentHookHandlers(runtime, { getPtyIdForPaneKey })
   registerCodexConfigSyncHandlers(codexAccounts.runtimeHomeService)
-  registerExcalidrawLibraryHandlers()
   registerClaudeAccountHandlers(claudeAccounts)
   registerMiniMaxCredentialsHandlers(rateLimits)
   registerGrokAccountHandlers()

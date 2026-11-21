@@ -5,8 +5,7 @@ import { useAppStore } from '@/store'
 import { detectLanguage } from '@/lib/language-detect'
 import { dirname, joinPath } from '@/lib/path'
 import { extractIpcErrorMessage, renameFileOnDisk } from '@/lib/rename-file'
-import type { FileExplorerNewEntryKind, InlineInput } from './file-explorer-inline-input-row'
-import { toExcalidrawDrawingName } from './excalidraw-drawing-name'
+import type { InlineInput } from './file-explorer-inline-input-row'
 import type { TreeNode } from './file-explorer-types'
 import type { FileExplorerRowProjection } from './file-explorer-row-projection'
 import { commitFileExplorerOp } from './fileExplorerUndoRedo'
@@ -29,7 +28,7 @@ type UseFileExplorerInlineInputParams = {
 type UseFileExplorerInlineInputResult = {
   inlineInput: InlineInput | null
   inlineInputIndex: number
-  startNew: (type: FileExplorerNewEntryKind, parentPath: string, depth: number) => void
+  startNew: (type: 'file' | 'folder', parentPath: string, depth: number) => void
   startRename: (node: TreeNode) => void
   dismissInlineInput: () => void
   handleInlineSubmit: (value: string) => void
@@ -76,7 +75,7 @@ export function useFileExplorerInlineInput({
   }, [inlineInput, rowProjection, displayRootPath])
 
   const startNew = useCallback(
-    (type: FileExplorerNewEntryKind, parentPath: string, depth: number) => {
+    (type: 'file' | 'folder', parentPath: string, depth: number) => {
       if (activeWorktreeId && parentPath !== displayRootPath && !expanded.has(parentPath)) {
         toggleDir(activeWorktreeId, parentPath)
       }
@@ -114,8 +113,7 @@ export function useFileExplorerInlineInput({
         setInlineInput(null)
         return
       }
-      const name =
-        inlineInput.type === 'excalidraw' ? toExcalidrawDrawingName(value.trim()) : value.trim()
+      const name = value.trim()
       // No-op if the user submitted the same name (e.g. blur without editing)
       if (inlineInput.type === 'rename' && name === inlineInput.existingName) {
         setInlineInput(null)
@@ -214,7 +212,7 @@ export function useFileExplorerInlineInput({
               })
             }
             await refreshDir(inlineInput.parentPath)
-            if (inlineInput.type !== 'folder') {
+            if (inlineInput.type === 'file') {
               const runtimeEnvironmentId =
                 fileContext.settings.activeRuntimeEnvironmentId?.trim() || null
               openFile(

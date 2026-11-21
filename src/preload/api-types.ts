@@ -26,7 +26,6 @@ import type { DashboardApi, TerminalPreviewApi } from './api/dashboard-api'
 import type { DocPreviewApi } from './api/doc-preview-api'
 import type { EmulatorApi } from './api/emulator-api'
 import type { EphemeralVmApi } from './api/ephemeral-vm-api'
-import type { ExcalidrawLibraryApi } from './api/excalidraw-library-api'
 import type { ExportApi, FilesystemApi } from './api/filesystem-api'
 import type { GitInspectionApi } from './api/git-inspection-api'
 import type { GitOperationApi } from './api/git-operation-api'
@@ -127,7 +126,6 @@ export type PreloadApi = {
   remoteWorkspace: WorkspaceSessionApi['remoteWorkspace']
   updater: UpdaterApi
   notebook: FilesystemApi['notebook']
-  excalidrawLibrary: ExcalidrawLibraryApi
   docPreview: DocPreviewApi['docPreview']
   stats: StatsApi
   memory: MemoryApi

@@ -61,7 +61,6 @@ import { remoteWorkspaceApi } from './api/remote-workspace-bridge'
 import { updaterApi } from './api/updater-bridge'
 import { docPreviewApi } from './api/doc-preview-bridge'
 import { notebookApi } from './api/notebook-bridge'
-import { excalidrawLibraryApi } from './api/excalidraw-library-bridge'
 import { fsApi } from './api/fs-bridge'
 import { gitApi } from './api/git-bridge'
 import { uiApi } from './api/ui-bridge'
@@ -161,7 +160,6 @@ const api = {
   updater: updaterApi,
   docPreview: docPreviewApi,
   notebook: notebookApi,
-  excalidrawLibrary: excalidrawLibraryApi,
   fs: fsApi,
   git: gitApi,
   ui: uiApi,

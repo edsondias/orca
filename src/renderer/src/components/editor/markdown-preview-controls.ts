@@ -11,7 +11,6 @@ const MARKDOWN_DIFF_VIEW_MODES = ['source', 'rich'] as const satisfies readonly 
 const MERMAID_VIEW_MODES = ['source', 'rich'] as const satisfies readonly MarkdownViewMode[]
 const CSV_VIEW_MODES = ['source', 'rich'] as const satisfies readonly MarkdownViewMode[]
 const NOTEBOOK_VIEW_MODES = ['source', 'rich'] as const satisfies readonly MarkdownViewMode[]
-const EXCALIDRAW_VIEW_MODES = ['source', 'rich'] as const satisfies readonly MarkdownViewMode[]
 const NO_VIEW_MODES = [] as const satisfies readonly MarkdownViewMode[]
 
 // Why: every editable file (markdown, mermaid, or plain code) can flip into
@@ -30,10 +29,6 @@ export function getEditorToggleModes(target: MarkdownPreviewTarget): readonly Ed
     // Why: notebook source mode is raw JSON and Changes would diff that JSON,
     // which is noisy and currently invalid for restored external notebooks.
     return NOTEBOOK_VIEW_MODES
-  }
-  if (target.language === 'excalidraw') {
-    // Why: Changes would diff the scene JSON, which is unreadable for a drawing.
-    return EXCALIDRAW_VIEW_MODES
   }
   const languageModes = getMarkdownViewModes(target)
   if (languageModes.length > 0) {
@@ -68,10 +63,6 @@ export function getMarkdownViewModes(target: MarkdownPreviewTarget): readonly Ma
 
   if (target.language === 'notebook' && target.mode === 'edit') {
     return NOTEBOOK_VIEW_MODES
-  }
-
-  if (target.language === 'excalidraw' && target.mode === 'edit') {
-    return EXCALIDRAW_VIEW_MODES
   }
 
   return NO_VIEW_MODES

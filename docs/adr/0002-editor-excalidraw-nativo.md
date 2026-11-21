@@ -1,7 +1,10 @@
 # ADR-0002: Editor Excalidraw nativo como componente React do renderer
 
 Data: 15/10/2026.
-Status: aceito.
+Status: substituído em 20/11/2026 pelo plugin oficial `stablyai.orca-excalidraw`.
+
+O upstream lançou na v1.4.245 um sistema de plugins com editores próprios, e o plugin oficial do Excalidraw atende ao uso do fork.
+O editor nativo foi revertido na `main` para reduzir os conflitos a cada atualização do upstream.
 Design completo: [specs/orca-excalidraw-design.md](../../specs/orca-excalidraw-design.md).
 
 ## Contexto
