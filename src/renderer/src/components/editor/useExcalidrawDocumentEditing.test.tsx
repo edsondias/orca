@@ -2,7 +2,7 @@
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { EMPTY_EDITOR_BUFFER_VIEW_INDEX as NO_SHARING } from '@/store/slices/editor/buffers/editor-buffer-views'
-import { flushPendingEditorBuffer } from './editor-pending-flush'
+import { flushPendingEditorBuffer } from './save/flush/editor-pending-flush'
 import { useExcalidrawDocumentEditing } from './useExcalidrawDocumentEditing'
 
 function setup(initialContent = '') {

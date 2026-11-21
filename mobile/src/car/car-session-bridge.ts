@@ -1,5 +1,5 @@
 import type { OrcaCarMessaging } from '../../modules/orca-car-messaging/src'
-import type { RpcClient } from '../transport/rpc-client'
+import type { RpcClient } from '../transport/rpc/rpc-client-contract'
 import { CAR_COPY } from './car-copy'
 import { createCarConversationStore, type CarNotificationEvent } from './car-conversation-store'
 import { createCarNotificationCatchUp } from './car-notification-catch-up'

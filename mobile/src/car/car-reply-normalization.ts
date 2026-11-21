@@ -1,5 +1,5 @@
-import { parseApprovalFromStatus } from '../../../src/shared/native-chat-interactive-prompt'
-import type { MobileChatPermission } from '../session/native-chat/input/mobile-native-chat-permission'
+import { parseApprovalFromStatus } from '../../../src/shared/native-chat/input/native-chat-interactive-prompt'
+import type { MobileChatPermission } from '../session/native-chat/input/prompts/mobile-native-chat-permission'
 import { detectAgentPermission } from './car-prose-permission'
 
 export type CarReplyKeystroke = { text: string; enter: boolean; label: string }

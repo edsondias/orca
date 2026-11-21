@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { CarConversation } from '../../modules/orca-car-messaging/src'
-import type { RpcClient } from '../transport/rpc-client'
+import type { RpcClient } from '../transport/rpc/rpc-client-contract'
 import {
   CAR_DISCONNECTED_NOTICE_MS,
   CAR_SYSTEM_CONVERSATION_ID,

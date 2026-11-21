@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
-import { registerPendingEditorFlush } from './editor-pending-flush'
+import { registerPendingEditorFlush } from './save/flush/editor-pending-flush'
 
 const EXCALIDRAW_COMMIT_DELAY_MS = 400
 

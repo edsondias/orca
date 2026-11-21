@@ -1,4 +1,4 @@
-import type { MobileNotificationDispatchEvent } from './runtime-mobile-notification-controller'
+import type { MobileNotificationDispatchEvent } from './push/notifications/runtime-mobile-notification-controller'
 
 export function buildAgentExitedMobileNotification(input: {
   ptyId: string

@@ -1,6 +1,6 @@
 import { defineMethod } from '../../core'
 import { admitMobileTerminalInput } from './mobile-terminal-input-admission'
-import { TerminalReplyToAgentPrompt } from '../../../../../shared/rpc-contract/terminal-unary-params'
+import { TerminalReplyToAgentPrompt } from '../../../../../shared/rpc-contract/terminal/terminal-agent-prompt-reply-params'
 
 export const TERMINAL_REPLY_TO_AGENT_PROMPT_METHODS = [
   defineMethod({

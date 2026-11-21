@@ -1,6 +1,11 @@
 // libuv spawns with bInheritHandles=TRUE and no handle list, so every inheritable handle in Orca
 // reaches a long-lived child. This spawn lists exactly one NUL handle, used for all three stdio.
-// Flags mirror libuv's detached spawn; no PROC_THREAD_ATTRIBUTE_PARENT_PROCESS, no breakaway.
+// Flags follow libuv's detached spawn, with CREATE_NO_WINDOW in place of DETACHED_PROCESS: a
+// console-less holder makes Windows open a new, visible console for every console program it starts
+// (System32's wsl.exe starts the WSL package's wsl.exe, which shows as an empty terminal window),
+// while a windowless console is inherited. CREATE_BREAKAWAY_FROM_JOB: a holder must outlive a
+// kill-on-close job Orca was launched into (an OpenSSH session's, a terminal's). A job that forbids
+// breakaway fails that with ERROR_ACCESS_DENIED; the spawn then retries inside it and reports so.
 
 #include "isolated-spawn.h"
 
@@ -91,14 +96,25 @@ Napi::Value SpawnDetachedIsolated(const Napi::CallbackInfo& info) {
   startup.StartupInfo.hStdError = nul;
   startup.lpAttributeList = attributes;
   PROCESS_INFORMATION created{};
-  const DWORD flags = CREATE_UNICODE_ENVIRONMENT | DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP |
+  const DWORD flags = CREATE_UNICODE_ENVIRONMENT | CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP |
                       EXTENDED_STARTUPINFO_PRESENT;
-  BOOL ok = CreateProcessW(reinterpret_cast<LPCWSTR>(file.c_str()),
-                           reinterpret_cast<LPWSTR>(commandLine.data()), nullptr, nullptr, TRUE,
-                           flags, environment.data(),
-                           cwd.empty() ? nullptr : reinterpret_cast<LPCWSTR>(cwd.c_str()),
-                           &startup.StartupInfo, &created);
-  DWORD error = GetLastError();
+  DWORD error = ERROR_SUCCESS;
+  auto create = [&](DWORD extra) {
+    // CreateProcessW may write to the command line buffer, so each attempt gets a fresh copy.
+    std::u16string line = commandLine;
+    BOOL created_ok = CreateProcessW(
+        reinterpret_cast<LPCWSTR>(file.c_str()), reinterpret_cast<LPWSTR>(line.data()), nullptr,
+        nullptr, TRUE, flags | extra, environment.data(),
+        cwd.empty() ? nullptr : reinterpret_cast<LPCWSTR>(cwd.c_str()), &startup.StartupInfo,
+        &created);
+    error = created_ok ? ERROR_SUCCESS : GetLastError();
+    return created_ok;
+  };
+  BOOL ok = create(CREATE_BREAKAWAY_FROM_JOB);
+  const bool breakawayDenied = !ok && error == ERROR_ACCESS_DENIED;
+  if (breakawayDenied) {
+    ok = create(0);
+  }
   DeleteProcThreadAttributeList(attributes);
   CloseHandle(nul);
   if (!ok) {
@@ -108,6 +124,7 @@ Napi::Value SpawnDetachedIsolated(const Napi::CallbackInfo& info) {
 
   auto result = Napi::Object::New(env);
   result.Set("pid", static_cast<double>(created.dwProcessId));
+  result.Set("breakawayDenied", Napi::Boolean::New(env, breakawayDenied));
   auto* watch = new ExitWatch{created.hProcess};
   watch->onExit = Napi::ThreadSafeFunction::New(env, info[4].As<Napi::Function>(),
                                                 "orcaIsolatedSpawnExit", 0, 1);
@@ -123,4 +140,9 @@ Napi::Value SpawnDetachedIsolated(const Napi::CallbackInfo& info) {
   }
   result.Set("exitWatchError", env.Null());
   return result;
+}
+
+// The newest export: build probes read it to reject an addon built before breakaway.
+Napi::Value IsolatedSpawnBreaksAwayFromJob(const Napi::CallbackInfo& info) {
+  return Napi::Boolean::New(info.Env(), true);
 }

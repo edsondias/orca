@@ -1,4 +1,4 @@
-import type { MobileChatPermission } from '../session/native-chat/input/mobile-native-chat-permission'
+import type { MobileChatPermission } from '../session/native-chat/input/prompts/mobile-native-chat-permission'
 
 // Why: upstream dropped mobile's prose fallback; the car keeps it for the numbered menu a TUI prints
 // with no approval envelope, and only after carPromptMenu found no envelope.

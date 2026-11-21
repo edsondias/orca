@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { OrcaRuntimeService } from '../orca-runtime'
 import { RpcDispatcher } from './dispatcher'
-import { TERMINAL_METHODS } from './methods/terminal'
+import { TERMINAL_METHODS } from './methods/terminal/terminal'
 
 const fence = { generation: 1, permissionSequence: 2, blockedSince: null, promptKey: null }
 

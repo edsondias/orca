@@ -39,7 +39,7 @@ vi.mock('../storage/preferences', () => ({
   loadCarModeEnabled: async () => true
 }))
 
-vi.mock('../transport/persisted-connection-log-store', () => ({
+vi.mock('../diagnostics/connection/persisted-connection-log-store', () => ({
   recordCarSessionLog: () => {}
 }))
 

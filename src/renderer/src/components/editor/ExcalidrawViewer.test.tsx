@@ -62,12 +62,12 @@ vi.mock('@excalidraw/excalidraw', () => ({
     JSON.stringify({ type: 'excalidraw', elements })
 }))
 vi.mock('@excalidraw/excalidraw/index.css', () => ({}))
-vi.mock('@/hooks/use-document-dark-theme', () => ({ useDocumentDarkTheme: () => mock.dark }))
+vi.mock('@/hooks/theme/use-document-dark-theme', () => ({ useDocumentDarkTheme: () => mock.dark }))
 vi.mock('@/store', () => ({
   useAppStore: (selector: (state: Record<string, unknown>) => unknown) =>
     selector({ setMarkdownViewMode: mock.setMarkdownViewMode })
 }))
-vi.mock('./editor-shortcuts', () => ({
+vi.mock('./commands/editor-shortcuts', () => ({
   installEditorSaveShortcut: (target: HTMLElement, onSave: () => void) => {
     const listener = (event: KeyboardEvent): void => {
       if ((event.ctrlKey || event.metaKey) && event.key === 's') {

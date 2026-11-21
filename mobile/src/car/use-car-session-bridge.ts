@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { AppState } from 'react-native'
 import { OrcaCarMessaging } from '../../modules/orca-car-messaging/src'
 import { loadCarModeEnabled } from '../storage/preferences'
-import { recordCarSessionLog } from '../transport/persisted-connection-log-store'
+import { recordCarSessionLog } from '../diagnostics/connection/persisted-connection-log-store'
 import { fetchMissedCarNotifications, subscribeToCarNotifications } from './car-notification-stream'
 import { sendCarReply } from './car-reply-send'
 import {

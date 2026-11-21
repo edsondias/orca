@@ -1,4 +1,4 @@
-import { isMethodNotFoundRefusal } from '../transport/rpc-acceptance-policies'
+import { isMethodNotFoundRefusal } from '../transport/rpc/rpc-acceptance-policies'
 import { carAgentPromptReply } from './car-reply-operations'
 import type { CarBridgeHost } from './car-session-bridge'
 import type { CarReplySendResult, createCarReplyRouter } from './car-reply-router'

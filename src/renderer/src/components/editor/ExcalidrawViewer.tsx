@@ -19,10 +19,10 @@ import type {
   UIOptions
 } from '@excalidraw/excalidraw/types'
 import { Button } from '@/components/ui/button'
-import { useDocumentDarkTheme } from '@/hooks/use-document-dark-theme'
+import { useDocumentDarkTheme } from '@/hooks/theme/use-document-dark-theme'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
-import { installEditorSaveShortcut } from './editor-shortcuts'
+import { installEditorSaveShortcut } from './commands/editor-shortcuts'
 import { parseExcalidrawFile } from './excalidraw-file-parse'
 import {
   flushExcalidrawLibrarySave,

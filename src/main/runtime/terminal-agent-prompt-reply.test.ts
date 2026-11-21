@@ -1,14 +1,14 @@
 import { describe, expect, it, vi } from 'vitest'
-import { AGENT_STATUS_STALE_AFTER_MS } from '../../shared/agent-status-types'
-import type { AgentStatusIpcPayload } from '../../shared/agent-status-ipc-payload'
+import { AGENT_STATUS_STALE_AFTER_MS } from '../../shared/agent-status/contracts/agent-status-freshness'
+import type { AgentStatusIpcPayload } from '../../shared/agent-status/contracts/agent-status-ipc-payload'
 import {
   AGENT_PROMPT_TEST_WORKTREE_PATH,
   createAgentPromptSubmissionRuntime
-} from './agent-prompt-submission-runtime-test-fixture'
+} from './terminal/input/agent-prompt-submission-runtime-test-fixture'
 import { OrcaRuntimeService } from './orca-runtime'
-import { makeStore } from './runtime-rpc-worktree-store-fixtures'
+import { makeStore } from './rpc/server/runtime-rpc-worktree-store-fixtures'
 import { RpcDispatcher } from './rpc/dispatcher'
-import { TERMINAL_METHODS } from './rpc/methods/terminal'
+import { TERMINAL_METHODS } from './rpc/methods/terminal/terminal'
 
 const worktrees = vi.hoisted(() => [
   {
@@ -20,7 +20,8 @@ const worktrees = vi.hoisted(() => [
   }
 ])
 
-vi.mock('../git/worktree', () => ({
+vi.mock('../git/worktrees/catalog/worktree-listing', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
   listWorktrees: vi.fn().mockResolvedValue(worktrees),
   listWorktreesStrict: vi.fn().mockResolvedValue(worktrees)
 }))
@@ -39,7 +40,8 @@ async function hookRuntime() {
   const writes: string[] = []
   // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the fixture store implements every member the runtime reads here.
   const runtime = new OrcaRuntimeService(makeStore() as never, undefined, {
-    getAgentStatusSnapshot: () => rows
+    getAgentStatusSnapshot: () => rows,
+    getPublicAgentStatusSnapshotForPane: () => rows
   })
   runtime.setPtyController({
     spawn: async () => ({ id: 'pty-prompt' }),
@@ -195,7 +197,8 @@ describe('replyToTerminalAgentPrompt', () => {
 
     it('ignores restored-unconfirmed and stale rows', async () => {
       const { runtime, handle, rows, blockedRow } = await hookRuntime()
-      rows.push(blockedRow({ restoredUnconfirmed: true }))
+      // A restored permission still on screen is held as live, so only a session-only restore is ignored.
+      rows.push(blockedRow({ restoredUnconfirmed: true, providerSessionOnly: true }))
       expect(runtime.getTerminalAgentPromptFence(handle)).toBeNull()
       rows[0] = blockedRow({ receivedAt: Date.now() - AGENT_STATUS_STALE_AFTER_MS - 1 })
       expect(runtime.getTerminalAgentPromptFence(handle)).toBeNull()

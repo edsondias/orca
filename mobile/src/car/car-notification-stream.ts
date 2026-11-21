@@ -1,7 +1,7 @@
 import { z } from 'zod'
-import type { RpcClient } from '../transport/rpc-client'
-import { bindDeferredRpcOperation, defineRpcOperation } from '../transport/rpc-operation'
-import { rpcResultVariant } from '../transport/rpc-operation-result-reader'
+import type { RpcClient } from '../transport/rpc/rpc-client-contract'
+import { bindDeferredRpcOperation, defineRpcOperation } from '../transport/rpc/rpc-operation'
+import { rpcResultVariant } from '../transport/rpc/rpc-operation-result-reader'
 import type { CarMissedSinceParams } from './car-notification-catch-up'
 
 // The rows stay unknown: the car's catch-up validates each one exactly as it does live stream events.
