@@ -1,6 +1,7 @@
 import type { ExecutionHostId } from '../../../../../shared/execution-host/execution-host'
 import type { Tab } from '../../../../../shared/workspace-layout/tab-groups/tab-types'
 import type { TuiAgent } from '../../../../../shared/agent-launch/catalog/tui-agent'
+import type { ClaudeVariantMark } from '../../../../../shared/claude-ollama-variants'
 import type {
   AgentProviderSessionMetadata,
   SleepingAgentLaunchConfig
@@ -25,6 +26,7 @@ export type WorktreeActivationStore = Partial<WorktreeRuntimeOwnerState> & {
       recordInteraction?: boolean
       viewMode?: Tab['viewMode']
       activate?: boolean
+      claudeVariant?: ClaudeVariantMark
       pendingStartup?: {
         command: string
         env?: Record<string, string>

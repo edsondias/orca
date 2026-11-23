@@ -16,6 +16,7 @@ import { getExecutionHostIdForWorktree } from '@/lib/workspace/ownership/worktre
 import { runtimeEnvironmentIdUnlessTwin } from '@/lib/workspace/ownership/resolve-owner'
 import { getLocalProjectExecutionRuntimeContext } from '@/runtime/hosts/preflight/local-preflight-context'
 import { resolveResumeLaunchRecipe } from '../../../../../shared/agent-launch/choices/resume-launch-recipe'
+import { resolveResumeAgentLaunchEnv } from '../../../../../shared/claude-ollama-variants'
 import { translate } from '@/i18n/i18n'
 import type { SleepingAgentSessionRecord } from '../../../../../shared/agent-session/lifecycle/agent-session-resume'
 
@@ -61,16 +62,27 @@ export function launchSleepingAgentSession(
   const state = useAppStore.getState()
   const launchConfig = record.launchConfig
   const resumeTarget = getResumeLaunchTarget(record.worktreeId)
-  const startupPlan = buildAgentResumeStartupPlan({
+  const recipe = resolveResumeLaunchRecipe(launchConfig, record.agent, record.providerSession)
+  // Why: only a variant without a recorded recipe rebuilds its env; it never resumes as plain Claude.
+  const agentEnv = resolveResumeAgentLaunchEnv({
     agent: record.agent,
-    providerSession: record.providerSession,
-    cmdOverrides: state.settings?.agentCmdOverrides ?? {},
-    ...resolveResumeLaunchRecipe(launchConfig, record.agent, record.providerSession),
-    platform: resumeTarget.platform,
-    agentHostPlatform: resumeTarget.agentHostPlatform,
-    shell: resumeTarget.shell,
-    launchCwd: state.getKnownWorktreeById(record.worktreeId)?.path
+    launchConfig: launchConfig ?? (record.claudeVariant ? undefined : recipe),
+    claudeVariant: record.claudeVariant,
+    settings: state.settings
   })
+  const startupPlan = agentEnv.ok
+    ? buildAgentResumeStartupPlan({
+        agent: record.agent,
+        providerSession: record.providerSession,
+        cmdOverrides: state.settings?.agentCmdOverrides ?? {},
+        ...recipe,
+        agentEnv: agentEnv.env,
+        platform: resumeTarget.platform,
+        agentHostPlatform: resumeTarget.agentHostPlatform,
+        shell: resumeTarget.shell,
+        launchCwd: state.getKnownWorktreeById(record.worktreeId)?.path
+      })
+    : null
   if (!startupPlan) {
     toast.error(
       translate(
@@ -84,6 +96,7 @@ export function launchSleepingAgentSession(
   const expectedStatus = state.agentStatusByPaneKey.get(record.paneKey)
   const tab = state.createTab(record.worktreeId, undefined, undefined, {
     launchAgent: record.agent,
+    ...(record.claudeVariant ? { claudeVariant: record.claudeVariant } : {}),
     pendingStartup: {
       command: startupPlan.launchCommand,
       ...(startupPlan.env ? { env: startupPlan.env } : {}),

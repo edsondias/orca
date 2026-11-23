@@ -32,6 +32,7 @@ import { launchStructuredAgentFromNewTab } from '@/lib/agent-session/launch/new-
 import '@/lib/agent-session/launch/routing/agent-launch-route-input'
 import { workspaceKindForWorktreeId } from '../../../../../../shared/agent-launch/contracts/workspace-launch-kind'
 import { launchOnceHostAnswered, routeNewTabLaunch } from './launch-agent-in-new-tab-host-agents'
+import { refuseClaudeVariant, resolveNewTabClaudeVariant } from './launch-agent-claude-variant'
 import type { AgentTabLaunchOutcome } from './launch-agent-in-new-tab-host-agents'
 
 /**
@@ -82,6 +83,10 @@ function openAgentInNewTab(
     activate
   } = args
   const store = agentTabLaunchStore(useAppStore.getState(), args)
+  const variant = resolveNewTabClaudeVariant(store, args)
+  if (!variant) {
+    return refuseClaudeVariant(args, notifyFailure)
+  }
   const trimmedPrompt = prompt?.trim() ?? ''
   const hasPrompt = trimmedPrompt.length > 0
   const isFollowupPath = TUI_AGENT_CONFIG[agent].promptInjectionMode === 'stdin-after-start'
@@ -97,7 +102,7 @@ function openAgentInNewTab(
     workspace: { kind: workspaceKindForWorktreeId(worktreeId), worktreeId },
     prompt: trimmedPrompt,
     promptDelivery: routePromptDelivery,
-    tuiCustomization: { cwd: initialCwd },
+    tuiCustomization: { cwd: initialCwd, ...(variant.mark ? { launchesClaudeVariant: true } : {}) },
     ...(sessionOptions ? { launchOptions: sessionOptions } : {}),
     ...(args.chatSessionOptions !== undefined
       ? { chatLaunchOptions: args.chatSessionOptions }
@@ -163,16 +168,18 @@ function openAgentInNewTab(
     agentLaunchChoices = readAgentLaunchPreferencesForWorktree(store, worktreeId).agentLaunchChoices
   ) =>
     planLaunchAgentStartupPrompt({
-      base: resolveAgentStartupPlanInputs({
-        agent,
-        settings: { ...store.settings, agentLaunchChoices },
-        agentArgs,
-        sessionOptions,
-        sessionOptionsYieldToAgentArgs: args.sessionOptionsYieldToAgentArgs,
-        platform: resolvedLaunchPlatform,
-        shell: queuedShell,
-        isRemote
-      }),
+      base: variant.startupInputs(
+        resolveAgentStartupPlanInputs({
+          agent,
+          settings: { ...store.settings, agentLaunchChoices },
+          agentArgs,
+          sessionOptions,
+          sessionOptionsYieldToAgentArgs: args.sessionOptionsYieldToAgentArgs,
+          platform: resolvedLaunchPlatform,
+          shell: queuedShell,
+          isRemote
+        })
+      ),
       prompt: trimmedPrompt,
       promptDelivery,
       isFollowupPath
@@ -221,6 +228,8 @@ function openAgentInNewTab(
   }
   if (
     pasteDraftAfterLaunch !== null &&
+    // The host builds its own startup plan, which would drop the variant env.
+    !variant.mark &&
     newTabPromptLaunchesThroughHost({ promptDelivery, pastesPrompt: true, isRemote })
   ) {
     const launched = launchNewTabPromptThroughHost({
@@ -251,6 +260,7 @@ function openAgentInNewTab(
   const tab = store.createTab(worktreeId, groupId, undefined, {
     launchAgent: agent,
     quickCommandLabel,
+    ...(variant.mark ? { claudeVariant: variant.mark } : {}),
     ...(initialCwd?.trim() ? { startupCwd: initialCwd } : {}),
     ...(pendingActivationSpawn ? { pendingActivationSpawn: true } : {}),
     ...(activate === false ? { activate: false } : {}),

@@ -4,6 +4,7 @@ import type { AgentStartupSettings } from '../../../../../../shared/agent-launch
 import type { AgentLaunchInputViews } from '../../../../../../shared/agent-launch/choices/agent-launch-choices'
 import type { ProjectGroup } from '../../../../../../shared/project/groups/project-group-types'
 import type { TuiAgent } from '../../../../../../shared/agent-launch/catalog/tui-agent'
+import type { ClaudeOllamaVariant } from '../../../../../../shared/claude-ollama-variants'
 import type { LaunchSource } from '../../../../../../shared/telemetry/schemas/telemetry-property-schemas'
 import type { TaskSourceContext } from '../../../../../../shared/work-items/task-source-context'
 
@@ -26,6 +27,8 @@ export type SubmitFolderWorkspaceCreateParams = {
   linkedTaskSourceContext?: TaskSourceContext | null
   note: string
   quickAgent: TuiAgent | null
+  /** The Ollama variant a Claude launch runs as; forces the terminal route and marks the tab. */
+  claudeVariant?: ClaudeOllamaVariant | null
   launchChoice?: AgentLaunchChoice
   legacyLaunchInputs?: AgentLaunchInputViews
   launchInputs?: AgentLaunchInputViews

@@ -21,10 +21,13 @@ export function sleepingRecordFromEntry(args: {
   origin?: SleepingAgentSessionRecord['origin']
 }): SleepingAgentSessionRecord | null {
   const { state, tab, ...record } = args
-  return resumeRecordFromStatus({
+  let recordTab = tab
+  const resumeRecord = resumeRecordFromStatus({
     ...record,
-    tabOf: () => tab ?? findTabForAgentEntry(state, args.worktreeId, args.entry)
+    tabOf: () => (recordTab ??= findTabForAgentEntry(state, args.worktreeId, args.entry))
   })
+  const claudeVariant = recordTab?.claudeVariant
+  return resumeRecord && claudeVariant ? { ...resumeRecord, claudeVariant } : resumeRecord
 }
 
 export type CollectSleepingAgentSessionRecordsOptions = {

@@ -1,4 +1,5 @@
 import type { AgentCatalogEntry } from '@/lib/agent-catalog/agent-catalog'
+import type { ClaudeOllamaVariant } from '../../../../shared/claude-ollama-variants'
 import { isClipboardTextByteLengthOverLimit } from '../../../../shared/clipboard/clipboard-text'
 
 type RankedAgent = {
@@ -41,6 +42,22 @@ export function getAgentPickerCommandValue({
     return blankValue
   }
   return filteredAgents[0]?.id ?? ''
+}
+
+/** Whether the picker query names an Ollama variant by its label or model. */
+export function claudeVariantPickerMatches(
+  variant: ClaudeOllamaVariant,
+  rawQuery: string
+): boolean {
+  const query = getAgentPickerSearchQuery(rawQuery)
+  if (query === null) {
+    return false
+  }
+  return (
+    !query ||
+    scoreCandidate(query, variant.label, 0) !== NO_MATCH ||
+    scoreCandidate(query, variant.model, 650) !== NO_MATCH
+  )
 }
 
 export function searchAgentPickerEntries(

@@ -4,6 +4,7 @@ import type { AgentStartupPlan } from '../../../../../shared/agent-launch/startu
 import type { LinkedWorkItemSummary } from '@/lib/workspace/creation/new-workspace'
 import type { TaskSourceContext } from '../../../../../shared/work-items/task-source-context'
 import type { TuiAgent } from '../../../../../shared/agent-launch/catalog/tui-agent'
+import type { ClaudeVariantMark } from '../../../../../shared/claude-ollama-variants'
 import type { AgentLaunchChoice } from '@/lib/agent-session/launch/routing/agent-menu-selection'
 import type { GitPushTarget } from '../../../../../shared/worktree/types'
 import type { SetupDecision } from '../../../../../shared/worktree/create-types'
@@ -58,6 +59,7 @@ export type QuickCreationRequestInput = {
   quickTelemetry: AgentStartedTelemetry | null
   suppressTerminalFocusOnCompletion: boolean
   setupOnly: boolean
+  claudeVariant: ClaudeVariantMark | null
 }
 
 export type QuickSubmitOptions = {
@@ -66,6 +68,8 @@ export type QuickSubmitOptions = {
   launchChoice?: AgentLaunchChoice
   launchInputs?: WorktreeCreationRequest['launchInputs']
   legacyLaunchInputs?: WorktreeCreationRequest['legacyLaunchInputs']
+  /** Ollama variant picked with Claude; ignored for any other agent. */
+  claudeVariantId?: string | null
 }
 
 export function buildQuickCreationRequest(
@@ -133,6 +137,7 @@ export function buildQuickCreationRequest(
     promptDelivery: input.promptDelivery,
     quickTelemetry: input.quickTelemetry,
     ...(input.suppressTerminalFocusOnCompletion ? { suppressTerminalFocusOnCompletion: true } : {}),
-    ...(input.agent === null ? { setupOnly: input.setupOnly } : {})
+    ...(input.agent === null ? { setupOnly: input.setupOnly } : {}),
+    ...(input.claudeVariant ? { claudeVariant: input.claudeVariant } : {})
   }
 }

@@ -7,7 +7,7 @@ import type { WorktreeStartupPayload } from '@/lib/workspace/creation/worktree-s
 
 type FolderStartupPayloadInput = Pick<
   SubmitFolderWorkspaceCreateParams,
-  'quickAgent' | 'launchInputs' | 'sessionOptions' | 'note'
+  'quickAgent' | 'claudeVariant' | 'launchInputs' | 'sessionOptions' | 'note'
 > & {
   startupPlan: ReturnType<typeof buildAgentStartupPlan> | null
   requestedAgentArgs: SubmitFolderWorkspaceCreateParams['agentArgs']
@@ -17,6 +17,7 @@ type FolderStartupPayloadInput = Pick<
 
 export function buildFolderWorkspaceStartupPayload({
   quickAgent,
+  claudeVariant,
   startupPlan,
   launchInputs,
   requestedAgentArgs,
@@ -51,7 +52,10 @@ export function buildFolderWorkspaceStartupPayload({
           agent_kind: tuiAgentToAgentKind(quickAgent),
           launch_source: launchSource,
           request_kind: 'new' as const
-        }
+        },
+        ...(claudeVariant
+          ? { claudeVariant: { id: claudeVariant.id, label: claudeVariant.label } }
+          : {})
       }
     : undefined
 }

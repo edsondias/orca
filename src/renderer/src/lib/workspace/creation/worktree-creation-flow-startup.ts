@@ -49,7 +49,8 @@ export function buildWorktreeCreationStartupOpt(
     ...(request.agent === 'command-code' && request.quickPrompt.trim().length > 0
       ? { initialAgentStatus: { agent: request.agent, prompt: request.quickPrompt.trim() } }
       : {}),
-    ...(request.quickTelemetry ? { telemetry: request.quickTelemetry } : {})
+    ...(request.quickTelemetry ? { telemetry: request.quickTelemetry } : {}),
+    ...(request.claudeVariant ? { claudeVariant: request.claudeVariant } : {})
   }
 }
 

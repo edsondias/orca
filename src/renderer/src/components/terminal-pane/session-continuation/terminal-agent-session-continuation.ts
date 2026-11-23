@@ -89,6 +89,8 @@ export function prepareAgentSessionContinuationFromPane({
     groupId,
     workspacePath,
     initialCwd: initialCwd || workspacePath,
-    launchSource: 'terminal_context_menu'
+    launchSource: 'terminal_context_menu',
+    sourceClaudeVariantId:
+      state.tabsByWorktree[worktreeId]?.find((tab) => tab.id === tabId)?.claudeVariant?.id ?? null
   }
 }

@@ -1,5 +1,6 @@
 import type { AiVaultSessionTitle } from '../../ai-vault/contracts/ai-vault-session-title'
 import type { AgentType } from '../../agent-status/contracts/agent-status-types'
+import type { ClaudeVariantMark } from '../../claude-ollama-variants'
 import type { ExecutionHostId } from '../../execution-host/execution-host'
 
 export type TabGroupSplitDirection = 'horizontal' | 'vertical'
@@ -76,6 +77,8 @@ export type Tab = {
   /** Stable AI Vault conversation name, bound to its provider session identity. */
   aiVaultTitle?: AiVaultSessionTitle | null
   quickCommandLabel?: string | null
+  /** Ollama variant that launched this Claude tab; prefixes the displayed label only. */
+  claudeVariant?: ClaudeVariantMark | null
   customLabel: string | null
   color: string | null
   sortOrder: number

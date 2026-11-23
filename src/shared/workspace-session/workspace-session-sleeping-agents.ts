@@ -4,6 +4,7 @@ import {
   normalizeAgentProviderSession,
   RESUMABLE_TUI_AGENTS
 } from '../agent-session/lifecycle/agent-session-resume'
+import { claudeVariantMarkSchema } from '../claude-variant-mark-schema'
 import { AGENT_EFFORT_LEVEL } from '../agent-launch/choices/agent-effort-level'
 import { isValidTerminalTabId } from '../workspace-layout/terminal-surfaces/terminal-tab-id'
 import { normalizeMainAgentStatusField } from '../agent-status/contracts/agent-status-types'
@@ -103,6 +104,7 @@ export const sleepingAgentSessionRecordSchema = z
     mainAgent: z.unknown().transform(normalizeMainAgentStatusField).optional(),
     connectionId: z.string().nullable().optional(),
     launchConfig: sleepingAgentLaunchConfigSchema.optional(),
+    claudeVariant: claudeVariantMarkSchema,
     origin: z.enum(['worktree-sleep', 'quit', 'live']).optional(),
     restoreOnTabOpenOnly: z.boolean().optional()
   })

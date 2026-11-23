@@ -100,6 +100,8 @@ export type ComposerCardActionProps = {
   onLinkQueryChange: ComposerModel['setLinkQuery']
   onSelectLinkedItem: ComposerModel['handleSelectLinkedItem']
   onTuiAgentChange: ComposerModel['setTuiAgent']
+  /** Runtime environment hosting the target's agents, which decides whether variants are offered. */
+  agentRuntimeEnvironmentId: string | null
   onOpenAgentSettings: ComposerModel['handleOpenAgentSettings']
   onToggleAdvanced: () => void
   onSetupChoiceRevealed: () => void

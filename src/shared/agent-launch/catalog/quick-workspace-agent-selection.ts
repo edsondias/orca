@@ -1,3 +1,4 @@
+import type { ClaudeOllamaVariant } from '../../claude-ollama-variants'
 import type { TuiAgent } from './tui-agent'
 import { isTuiAgentEnabled, pickTuiAgent, TUI_AGENT_AUTO_PICK_ORDER } from './tui-agent-selection'
 
@@ -71,4 +72,20 @@ export function resolveQuickWorkspaceAgentSelection({
     return { quickAgent: quickAgentOverride, quickAgentOverride }
   }
   return { quickAgent: preferredQuickAgent, quickAgentOverride: preferredQuickAgent }
+}
+
+/** The quick pick's variant, kept only while Claude is picked and the target still offers it. */
+export function resolveQuickClaudeVariantId({
+  quickAgent,
+  claudeVariantId,
+  variants
+}: {
+  quickAgent: TuiAgent | null
+  claudeVariantId: string | null
+  variants: readonly ClaudeOllamaVariant[]
+}): string | null {
+  if (quickAgent !== 'claude' || !claudeVariantId) {
+    return null
+  }
+  return variants.some((variant) => variant.id === claudeVariantId) ? claudeVariantId : null
 }

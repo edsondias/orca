@@ -19,6 +19,7 @@ import { normalizeMatchQuery, tokenizeMatchValue } from './query-token-match'
 import type { TuiAgent } from '../../../../../shared/agent-launch/catalog/tui-agent'
 import type { Translate } from '@/i18n/use-translate'
 import type { ActiveOption } from './tab-create-entry-active-option'
+import type { ClaudeOllamaVariant } from '../../../../../shared/claude-ollama-variants'
 
 export type TabAgentLaunchOption = {
   agent: TuiAgent
@@ -32,6 +33,8 @@ export type TabAgentLaunchOption = {
   preset?: AgentPickerSetupIdentity
   pickerEntry?: AgentPickerEntry
   reason?: string
+  /** Set on an Ollama variant row: the launch opens that variant instead of Anthropic's Claude. */
+  claudeVariantId?: string
 }
 
 function normalizeAgentAlias(value: string): string {
@@ -113,10 +116,32 @@ export function buildTabAgentLaunchOptionsFromRows(
   })
 }
 
+/** A variant opens only Claude's terminal, so it needs Claude's CLI where the menu launches. */
+function buildClaudeVariantLaunchOption(
+  entry: AgentPickerEntry,
+  variant: ClaudeOllamaVariant
+): TabAgentLaunchOption {
+  const aliases = new Set<string>([
+    normalizeAgentAlias(variant.label),
+    compactAgentAlias(variant.label),
+    normalizeAgentAlias(variant.model),
+    compactAgentAlias(variant.model)
+  ])
+  return {
+    agent: 'claude',
+    aliases: [...aliases],
+    label: variant.label,
+    id: `agent:claude:${variant.id}`,
+    row: { kind: 'cli', agent: 'claude', executionHostId: entry.rows[0]?.executionHostId },
+    claudeVariantId: variant.id
+  }
+}
+
 export function buildAgentPickerLaunchOptions(
   entries: readonly AgentPickerEntry[],
   commandOverrides: Partial<Record<TuiAgent, string>> = {},
-  t?: Translate
+  t?: Translate,
+  claudeVariants: readonly ClaudeOllamaVariant[] = []
 ): TabAgentLaunchOption[] {
   return entries.flatMap((entry) => {
     const row = entry.rows.find((row) =>
@@ -124,7 +149,7 @@ export function buildAgentPickerLaunchOptions(
         ? row.kind === 'chat'
         : row.kind === 'cli' || row.kind === 'terminal'
     )
-    return row
+    const options = row
       ? buildTabAgentLaunchOptionsFromRows([row], commandOverrides, t).map((option) => {
           const aliases = new Set(option.aliases)
           for (const alias of [entry.label, ...(entry.aliases ?? [])]) {
@@ -139,6 +164,12 @@ export function buildAgentPickerLaunchOptions(
           }
         })
       : []
+    return entry.agent === 'claude' && entry.surfaces.includes('terminal')
+      ? [
+          ...options,
+          ...claudeVariants.map((variant) => buildClaudeVariantLaunchOption(entry, variant))
+        ]
+      : options
   })
 }
 

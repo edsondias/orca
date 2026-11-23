@@ -49,6 +49,10 @@ import {
   getWorkspaceCreateErrorToastMessage
 } from '@/lib/workspace/creation/workspace-create-error-format'
 import { toast } from 'sonner'
+import {
+  reportComposerClaudeVariantLaunch,
+  resolveComposerClaudeVariant
+} from './composer-claude-variant-launch'
 
 export function useFolderSubmitOrchestration(input: FolderSubmitOrchestrationInput) {
   const {
@@ -103,10 +107,16 @@ export function useFolderSubmitOrchestration(input: FolderSubmitOrchestrationInp
         const smartGitHubMetadata =
           smartGitHubResolution.kind === 'none' ? null : smartGitHubResolution
         const submitLinkedWorkItem = smartGitHubMetadata?.linkedWorkItem ?? linkedWorkItem
-        const agent =
+        const enabledAgent =
           requestedAgent && isTuiAgentEnabled(requestedAgent, disabledTuiAgents)
             ? requestedAgent
             : null
+        const { agent, claudeVariant } = resolveComposerClaudeVariant({
+          agent: enabledAgent,
+          claudeVariantId: options?.claudeVariantId,
+          variants: settings?.claudeOllamaVariants
+        })
+        reportComposerClaudeVariantLaunch(enabledAgent, agent)
         if (isSubmissionCancelled()) {
           return
         }
@@ -168,6 +178,7 @@ export function useFolderSubmitOrchestration(input: FolderSubmitOrchestrationInp
           linkedTaskSourceContext: taskSourceContext,
           note,
           quickAgent: agent,
+          claudeVariant,
           launchChoice: options?.launchChoice,
           launchInputs: options?.launchInputs,
           legacyLaunchInputs: options?.legacyLaunchInputs,

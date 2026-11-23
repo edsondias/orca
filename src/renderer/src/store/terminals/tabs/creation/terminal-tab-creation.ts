@@ -120,6 +120,7 @@ export function createTerminalTabCreationActions(
           title: defaultTitle,
           defaultTitle,
           ...(quickCommandLabel ? { quickCommandLabel } : {}),
+          ...(options?.claudeVariant ? { claudeVariant: options.claudeVariant } : {}),
           customTitle: null,
           color: null,
           sortOrder: existing.length,
@@ -205,6 +206,7 @@ export function createTerminalTabCreationActions(
           ...(tab.quickCommandLabel?.trim()
             ? { quickCommandLabel: tab.quickCommandLabel.trim() }
             : {}),
+          ...(tab.claudeVariant ? { claudeVariant: tab.claudeVariant } : {}),
           customLabel: tab.customTitle,
           color: tab.color,
           sortOrder: cleanedGroupOrder.length,

@@ -35,6 +35,7 @@ import {
   pickQuickWorkspaceAgent,
   resolveQuickWorkspaceAgentSelection
 } from '../../../../../shared/agent-launch/catalog/quick-workspace-agent-selection'
+import { useComposerClaudeVariants } from './use-quick-claude-variant-selection'
 import { useAgentsOfferedForLaunch } from '@/lib/agent-session/launch/inventory/host-chat-program-acquisition'
 import { shouldAllowComposerEnterSubmitTarget } from '@/lib/workspace/creation/new-workspace-enter-guard'
 import { isScreenSubmitShortcut } from '@/lib/keyboard/screen-submit-shortcut'
@@ -215,6 +216,13 @@ function QuickTabBody({
   const quickAgentSurface = quickAgentPick.agent === quickAgent ? quickAgentPick.surface : undefined
   const launchSelection = observation.selectionFor(quickAgent, quickAgentSurface)
   const createDisabled = formDisabled || !launchSelection.ready
+  // Why: cardProps clears the recipe id when ephemeral VMs are off or the target is a folder.
+  const { clearClaudeVariant, ...claudeVariantProps } = useComposerClaudeVariants({
+    quickAgent,
+    configured: settings?.claudeOllamaVariants,
+    runtimeEnvironmentId: cardProps.agentRuntimeEnvironmentId,
+    ephemeralVmRecipeId: cardProps.selectedEphemeralVmRecipeId
+  })
 
   const handleQuickAgentChange = useCallback(
     (
@@ -225,8 +233,9 @@ function QuickTabBody({
     ) => {
       setQuickAgentOverride(agent)
       setQuickAgentPick({ agent, surface, draft, entry, contextKey: observation.contextKey })
+      clearClaudeVariant()
     },
-    [observation.contextKey]
+    [observation.contextKey, clearClaudeVariant]
   )
 
   const handleCreate = useCallback(async (): Promise<void> => {
@@ -237,6 +246,7 @@ function QuickTabBody({
       // Blank Terminal is the setup-only create: no agent, and no extra shell beside setup.
       setupOnly: quickAgent === null,
       launchChoice: launchSelection.choice,
+      claudeVariantId: claudeVariantProps.quickClaudeVariantId,
       onLegacyPreparationFailure: (error) => {
         if (isSubmissionCancelled()) {
           return
@@ -279,6 +289,7 @@ function QuickTabBody({
     quickAgent,
     launchSelection.choice,
     submitQuick,
+    claudeVariantProps.quickClaudeVariantId,
     pickerDraft,
     quickAgentPick,
     isSubmissionCancelled,
@@ -370,6 +381,7 @@ function QuickTabBody({
           observation.model.pickerContext?.executionHostId !== 'local'
         }
         onQuickAgentChange={handleQuickAgentChange}
+        {...claudeVariantProps}
         {...cardProps}
         // Chips list offered agents, keeping a pick whose chat is still being learned.
         detectedAgentIds={chipAgentIds}

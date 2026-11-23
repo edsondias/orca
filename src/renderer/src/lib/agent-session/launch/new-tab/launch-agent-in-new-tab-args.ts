@@ -11,6 +11,8 @@ export type LaunchAgentInNewTabArgs = LaunchAgentInNewTabRequest & {
   preferredSurface?: AgentSessionLaunchRequest['preferredSurface']
   selectedExecutionHostId?: AgentSessionLaunchRequest['selectedExecutionHostId']
   agent: TuiAgent
+  /** Ollama Claude variant to launch; only valid with `agent: 'claude'`, otherwise the launch is refused. */
+  claudeVariantId?: string
   worktreeId: string
   /** Workspace owner captured by the action, independent of selection after an await. */
   workspaceExecutionHostId?: ExecutionHostId

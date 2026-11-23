@@ -4,6 +4,7 @@ import type {
 } from '../../../../../shared/workspace-layout/terminal-tab-types'
 import type { WorkspaceSessionState } from '../../../../../shared/workspace-session/workspace-session-state-types'
 import type { AiVaultSessionTitle } from '../../../../../shared/ai-vault/contracts/ai-vault-session-title'
+import type { ClaudeVariantMark } from '../../../../../shared/claude-ollama-variants'
 import { isValidTerminalTabId } from '../../../../../shared/workspace-layout/terminal-surfaces/terminal-tab-id'
 import {
   readCanonicalPtyOwners,
@@ -16,6 +17,7 @@ import { clearTransientTerminalState } from './terminal-transient-state'
 
 type CanonicalTerminals = CanonicalPtyOwners & {
   quickCommandLabelByTabId: Map<string, string>
+  claudeVariantByTabId: Map<string, ClaudeVariantMark>
   aiVaultTitleByTabId: Map<string, AiVaultSessionTitle>
 }
 
@@ -121,6 +123,9 @@ function readCanonicalTerminals(
         tab.quickCommandLabel?.trim() ? [[tab.entityId, tab.quickCommandLabel.trim()]] : []
       )
     ),
+    claudeVariantByTabId: new Map(
+      canonicalTabs.flatMap((tab) => (tab.claudeVariant ? [[tab.entityId, tab.claudeVariant]] : []))
+    ),
     aiVaultTitleByTabId: new Map(
       canonicalTabs.flatMap((tab) => (tab.aiVaultTitle ? [[tab.entityId, tab.aiVaultTitle]] : []))
     )
@@ -135,11 +140,13 @@ function restoreCanonicalMetadata(
 ): TerminalTab {
   const quickCommandLabel =
     row.quickCommandLabel?.trim() || canonical.quickCommandLabelByTabId.get(row.id)
+  const claudeVariant = row.claudeVariant ?? canonical.claudeVariantByTabId.get(row.id)
   const aiVaultTitle = row.aiVaultTitle ?? canonical.aiVaultTitleByTabId.get(row.id)
   return {
     ...clearTransientTerminalState(row, index),
     ...(titleIsLive ? { title: row.title } : {}),
     ...(quickCommandLabel ? { quickCommandLabel } : {}),
+    ...(claudeVariant ? { claudeVariant } : {}),
     ...(aiVaultTitle ? { aiVaultTitle } : {}),
     sortOrder: index,
     // Why: suppress restored mounts so only real activity updates Recent.

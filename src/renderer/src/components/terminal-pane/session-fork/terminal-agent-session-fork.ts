@@ -32,6 +32,8 @@ type ForkAgentSessionFromPaneArgs = {
 export type PreparedAgentSessionFork = {
   prompt: string
   agent: TuiAgent | null
+  /** Set only for a Claude fork of an Ollama variant tab. */
+  claudeVariantId: string | null
   worktreeId: string
   focusSource: () => void
 }
@@ -99,10 +101,10 @@ export function prepareAgentSessionForkFromPane({
   const paneKey = makePaneKey(tabId, pane.leafId)
   const state = useAppStore.getState()
   const sourceAgent = resolveTuiAgent(state.agentStatusByPaneKey.get(paneKey)?.agentType)
-  const tabAgent = resolveTuiAgent(
-    state.tabsByWorktree[worktreeId]?.find((tab) => tab.id === tabId)?.launchAgent
-  )
+  const sourceTab = state.tabsByWorktree[worktreeId]?.find((tab) => tab.id === tabId)
+  const tabAgent = resolveTuiAgent(sourceTab?.launchAgent)
   const agent = sourceAgent ?? tabAgent
+  const claudeVariantId = agent === 'claude' ? (sourceTab?.claudeVariant?.id ?? null) : null
   // This forks context, not the process; xterm capture works for both local and SSH panes.
   const prompt = buildAgentSessionForkPrompt({
     capturedText: readTerminalContextText(pane.terminal),
@@ -124,6 +126,7 @@ export function prepareAgentSessionForkFromPane({
   return {
     prompt,
     agent,
+    claudeVariantId,
     worktreeId,
     focusSource: () => pane.terminal.focus()
   }
@@ -226,7 +229,8 @@ export async function startAgentSessionFork(fork: PreparedAgentSessionFork): Pro
     agent: fork.agent,
     workspace: { kind: 'git-worktree', worktreeId: forkWorktreeId },
     prompt: fork.prompt,
-    promptDelivery: 'draft'
+    promptDelivery: 'draft',
+    ...(fork.claudeVariantId ? { tuiCustomization: { launchesClaudeVariant: true } } : {})
   })
   const launchPlatform = getForkAgentLaunchPlatform({
     repo: sourceRepo,
@@ -240,6 +244,7 @@ export async function startAgentSessionFork(fork: PreparedAgentSessionFork): Pro
     promptDelivery: 'draft',
     launchSource: 'terminal_context_menu',
     agentSessionLaunchPlan,
+    ...(fork.claudeVariantId ? { claudeVariantId: fork.claudeVariantId } : {}),
     // The launcher opens the fork surface; revealing must not seed a sibling shell.
     beforeSurfaceOpen: () =>
       activateAndRevealWorktree(forkWorktreeId, {

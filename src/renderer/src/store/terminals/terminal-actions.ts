@@ -1,5 +1,6 @@
 import type { FreshWorkspaceAgentLaunch } from '@/lib/workspace/creation/worktree-startup-payload'
 import type { TerminalState } from './terminal-state'
+import type { ClaudeVariantMark } from '../../../../shared/claude-ollama-variants'
 import type { Tab } from '../../../../shared/workspace-layout/tab-groups/tab-types'
 import type { TabSplitTarget } from '../slices/tabs/tabs-slice-contract'
 import type {
@@ -95,6 +96,7 @@ export type TerminalActions = {
       /** The pane a host `agent.launch` laid out before its agent existed, while its fate is open. */
       agentLaunchPane?: TerminalTab['agentLaunchPane']
       quickCommandLabel?: string | null
+      claudeVariant?: ClaudeVariantMark
       viewMode?: Tab['viewMode']
       startupCwd?: string
       forceHostRuntime?: boolean

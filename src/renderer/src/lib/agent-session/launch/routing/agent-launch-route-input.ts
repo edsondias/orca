@@ -119,7 +119,7 @@ export type AgentLaunchRouteArgs = {
   workspace: ProspectiveWorkspace
   prompt?: string
   promptDelivery?: NativeChatLaunchPromptDelivery
-  tuiCustomization?: { cwd?: string | null }
+  tuiCustomization?: { cwd?: string | null; launchesClaudeVariant?: boolean }
 }
 
 export const worktreeLaunchWorkspace = (worktreeId: string): ProspectiveWorkspace => ({
@@ -216,10 +216,17 @@ export function buildAgentLaunchRouteInput(
 ): AgentLaunchRoutingInput {
   const { agent, workspace, tuiCustomization } = args
   const { executionHostId, hostCapabilities } = resolveAgentLaunchHost(store, workspace)
+  // The variant's Ollama env reaches only a terminal launch, so it never prefers a chat.
+  const launchesClaudeVariant = tuiCustomization?.launchesClaudeVariant === true
   return {
     agent,
-    settings: store.settings,
-    preferredSurface: args.preferredSurface,
+    settings: launchesClaudeVariant
+      ? {
+          ...store.settings,
+          nativeChatProviders: { ...store.settings?.nativeChatProviders, [agent]: false }
+        }
+      : store.settings,
+    preferredSurface: launchesClaudeVariant ? undefined : args.preferredSurface,
     executionHostId,
     hostCapabilities,
     ...(parseExecutionHostId(executionHostId)?.kind === 'runtime'

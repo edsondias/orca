@@ -10,6 +10,7 @@ import {
 } from '../../../shared/native-chat/settings/native-chat-providers'
 import { resolveNestedWorkerMaxDepth } from '../../../shared/orchestration/workers/nested-worker-depth'
 import { sanitizeAgentLaunchProfileUpdates } from '../../../shared/agent-launch/choices/tui-agent-launch-defaults'
+import { normalizeClaudeOllamaVariants } from '../../../shared/claude-ollama-variants'
 import { normalizeTerminalQuickCommands } from '../../../shared/terminal/quick-commands/terminal-quick-commands'
 import { assertTerminalQuickCommandsStorable } from '../../../shared/terminal/quick-commands/terminal-quick-command-prompt-limit'
 import { normalizeTerminalCustomThemes } from '../../../shared/terminal-themes/terminal-custom-themes'
@@ -123,6 +124,11 @@ export function updateSettings(
     Object.assign(
       sanitizedUpdates,
       legacyChatPermissionWrite(operations.state.settings, sanitizedUpdates)
+    )
+  }
+  if ('claudeOllamaVariants' in updates) {
+    sanitizedUpdates.claudeOllamaVariants = normalizeClaudeOllamaVariants(
+      updates.claudeOllamaVariants
     )
   }
   if ('terminalQuickCommands' in updates) {

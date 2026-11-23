@@ -21,6 +21,7 @@ type TerminalTabRecord = {
   id: string
   generation?: number
   recovery?: TerminalTab['recovery']
+  claudeVariant?: TerminalTab['claudeVariant']
 }
 type TerminalTabState = {
   getTab?: (

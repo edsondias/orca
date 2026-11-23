@@ -4,6 +4,7 @@ import { getDefaultVoiceSettings } from '../../../../shared/orca-profiles/consta
 import { normalizePRBotAuthorOverrides } from '../../../../shared/source-control/review-comments/pr-bot-author-overrides'
 import { normalizeNewTabMenuLayout } from '../../../../shared/new-tab-menu/new-tab-menu-layout'
 import { normalizeTerminalQuickCommands } from '../../../../shared/terminal/quick-commands/terminal-quick-commands'
+import { normalizeClaudeOllamaVariants } from '../../../../shared/claude-ollama-variants'
 import { normalizeOpenInApplications } from '../../../../shared/editor/launch/open-in-applications'
 
 import { normalizeTerminalShortcutPolicy } from '../../../../shared/keybindings/effective'
@@ -189,6 +190,12 @@ export function normalizeLoadedGlobalSettings(
     disabledTuiAgents: migratedDisabledTuiAgents,
     ...migratedAgentYoloDefaults,
     ...migratedAgentPermission,
+    // Why: absent stays absent so profiles that never used variants keep an unchanged settings shape.
+    ...(parsed.settings?.claudeOllamaVariants !== undefined
+      ? {
+          claudeOllamaVariants: normalizeClaudeOllamaVariants(parsed.settings.claudeOllamaVariants)
+        }
+      : {}),
     claudeAgentTeamsDefaultDisabledMigrated: true,
     sshRemoteCliControlExistingHostsMigrated: true,
     agentWorkspaceTrustExistingReposMigrated: true,

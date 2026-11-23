@@ -18,6 +18,8 @@ import {
   sleepingRecordNamesAnotherExecutionHost
 } from '@/lib/agent-session/resume/sleeping-record-execution-host-scope'
 import { resolveResumeLaunchRecipe } from '../../../../../../shared/agent-launch/choices/resume-launch-recipe'
+import { resolveResumeAgentLaunchEnv } from '../../../../../../shared/claude-ollama-variants'
+import { findTerminalTabForPane } from '../terminal-tab-id'
 import {
   isResumableTuiAgent,
   normalizeAgentProviderSession
@@ -110,11 +112,26 @@ export function bindBuildColdRestoreAgentResumeStartup(session: ConnectPanePtySe
         session.executionHostId
       )
     })
+    const recipe = resolveResumeLaunchRecipe(launchConfig, agent, providerSession)
+    const claudeVariant =
+      findTerminalTabForPane(state, session.deps.worktreeId, session.deps.tabId)?.claudeVariant ??
+      sleepingRecord?.claudeVariant
+    // Why: only a variant without a recorded recipe rebuilds its env; it never resumes as plain Claude.
+    const agentEnv = resolveResumeAgentLaunchEnv({
+      agent,
+      launchConfig: launchConfig ?? (claudeVariant ? undefined : recipe),
+      claudeVariant,
+      settings: state.settings
+    })
+    if (!agentEnv.ok) {
+      return null
+    }
     const startupPlan = buildAgentResumeStartupPlan({
       agent,
       providerSession,
       cmdOverrides: state.settings?.agentCmdOverrides ?? {},
-      ...resolveResumeLaunchRecipe(launchConfig, agent, providerSession),
+      ...recipe,
+      agentEnv: agentEnv.env,
       platform: resumeTarget.platform,
       agentHostPlatform: resumeTarget.agentHostPlatform,
       shell: resumeTarget.shell,
