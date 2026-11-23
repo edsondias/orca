@@ -17,6 +17,8 @@ import type { WorktreeCreationRequest } from '@/lib/workspace/creation/pending-w
 import type { AgentStartupPlan } from '../../../../../shared/agent-launch/startup/tui-agent-startup'
 
 import { resolveAgentStartupPlanInputs } from '../../../../../shared/agent-launch/startup/agent-startup-plan-inputs'
+import { withClaudeVariantStartupInputs } from '../../../../../shared/agent-launch/startup/claude-variant-startup-inputs'
+import type { ClaudeOllamaVariant } from '../../../../../shared/claude-ollama-variants'
 import '@/diagnostics/telemetry/telemetry'
 import { tuiAgentToAgentKind } from '../../../../../shared/agent-status/identity/agent-kind'
 import { getAgentLabel } from '@/lib/agent-catalog/agent-catalog'
@@ -26,6 +28,8 @@ import type { ExecutionHostPlatformFact } from '@/runtime/hosts/platform/executi
 
 export type QuickComposerStartupInput = {
   agent: TuiAgent | null
+  /** The Ollama variant the Claude launch runs as. */
+  claudeVariant?: ClaudeOllamaVariant | null
   prompt: string
   draftPrompt: string | null | undefined
   settings: GlobalSettings | null | undefined
@@ -51,15 +55,18 @@ export function buildQuickComposerStartup(input: QuickComposerStartupInput): Qui
   const inputs =
     agent === null
       ? null
-      : resolveAgentStartupPlanInputs({
-          agent,
-          settings: settings ?? {},
-          agentArgs: input.launchInputs?.agentArgs,
-          sessionOptions: input.launchInputs?.sessionOptions,
-          platform: requireExecutionHostPlatform(input.launchHost),
-          shell: input.shell ?? undefined,
-          isRemote: input.isRemote
-        })
+      : withClaudeVariantStartupInputs(
+          resolveAgentStartupPlanInputs({
+            agent,
+            settings: settings ?? {},
+            agentArgs: input.launchInputs?.agentArgs,
+            sessionOptions: input.launchInputs?.sessionOptions,
+            platform: requireExecutionHostPlatform(input.launchHost),
+            shell: input.shell ?? undefined,
+            isRemote: input.isRemote
+          }),
+          input.claudeVariant
+        )
   const promptPlan = inputs
     ? planLaunchAgentStartupPrompt({
         base: inputs,
@@ -95,8 +102,9 @@ export function buildQuickComposerStartup(input: QuickComposerStartupInput): Qui
             input.telemetrySource === 'onboarding' ? 'onboarding' : 'new_workspace_composer',
           request_kind: 'new'
         }
+  // Why: the backend spawns its own tab, which cannot carry the variant mark; the renderer seeds it.
   const backendStartup =
-    startupPlan && !startupPlan.draftPrompt && !startupPlan.followupPrompt
+    startupPlan && !startupPlan.draftPrompt && !startupPlan.followupPrompt && !input.claudeVariant
       ? {
           command: startupPlan.launchCommand,
           ...(startupPlan.env ? { env: startupPlan.env } : {}),
@@ -148,9 +156,11 @@ export async function prepareQuickComposerStartup(
       launchInputs: input.legacyLaunchInputs ?? input.launchInputs
     })
   const host = parseExecutionHostId(input.executionHostId)
+  // Why: a host-composed command uses the host's env, never the variant's Ollama env.
   const hostComposes =
     (input.launchInputs !== undefined || Boolean(draftPrompt)) &&
     !input.ephemeralVm &&
+    !input.claudeVariant &&
     host?.kind === 'runtime' &&
     readCachedRuntimeEnvironmentCapability(
       host.environmentId,

@@ -11,7 +11,10 @@ import type {
   InitialTerminalOptions,
   WorktreeActivationStore
 } from '@/lib/workspace/activation/worktree-activation-store-contract'
-import type { WorktreeStartupPayload } from '@/lib/workspace/creation/worktree-startup-payload'
+import {
+  claudeVariantTabProps,
+  type WorktreeStartupPayload
+} from '@/lib/workspace/creation/worktree-startup-payload'
 import {
   queueSetupAndIssueCommands,
   type IssueCommandLaunch
@@ -57,7 +60,9 @@ export function applyDefaultTerminalTabs(
     const tab = store.createTab(worktreeId, undefined, undefined, {
       pendingActivationSpawn: true,
       recordInteraction: false,
-      ...(launchAgent ? { launchAgent } : {}),
+      ...(launchAgent
+        ? { launchAgent, ...claudeVariantTabProps(isStartupTab ? startup : undefined) }
+        : {}),
       ...(opts?.activateCreatedTabs === false ? { activate: false } : {}),
       ...(pendingStartup ? { pendingStartup } : {})
     })

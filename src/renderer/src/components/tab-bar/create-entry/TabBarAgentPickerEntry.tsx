@@ -1,5 +1,7 @@
 import { useMemo } from 'react'
 import { useAppStore } from '@/store/index'
+import { runtimeEnvironmentIdOrLocalUnlessTwin } from '@/lib/workspace/ownership/worktree-runtime-owner'
+import { getVisibleClaudeOllamaVariants } from '@/lib/visible-claude-ollama-variants'
 import {
   useAgentPickerInventoryEntries,
   type AgentPickerInventorySource
@@ -19,9 +21,17 @@ export function TabBarAgentPickerEntry({
 }): React.JSX.Element {
   const entries = useAgentPickerInventoryEntries(inventory)
   const commandOverrides = useAppStore((state) => state.settings?.agentCmdOverrides)
+  const configuredClaudeVariants = useAppStore((state) => state.settings?.claudeOllamaVariants)
+  const runtimeEnvironmentId = useAppStore((state) =>
+    runtimeEnvironmentIdOrLocalUnlessTwin(state, props.worktreeId)
+  )
+  const claudeVariants = getVisibleClaudeOllamaVariants(
+    configuredClaudeVariants,
+    runtimeEnvironmentId
+  )
   const launchOptions = useMemo(
-    () => buildAgentPickerLaunchOptions(entries, commandOverrides),
-    [entries, commandOverrides]
+    () => buildAgentPickerLaunchOptions(entries, commandOverrides, undefined, claudeVariants),
+    [entries, commandOverrides, claudeVariants]
   )
   return hideAgents ? (
     <TabBarCreateEntry {...props} />

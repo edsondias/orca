@@ -7,6 +7,7 @@ import type {
   SleepingAgentLaunchConfig
 } from '../../../../../shared/agent-session/lifecycle/agent-session-resume'
 import type { SessionOptionValue } from '../../../../../shared/native-chat/input/native-chat-session-options'
+import type { ClaudeVariantMark } from '../../../../../shared/claude-ollama-variants'
 
 /** Telemetry threaded from the launch site to `pty:spawn`; main fires `agent_started`
  *  only after the spawn succeeds. See telemetry-plan.md§Agent launch semantics. */
@@ -37,4 +38,16 @@ export type WorktreeStartupPayload = {
   initialAgentStatus?: { agent: TuiAgent; prompt: string }
   sessionOptions?: Record<string, SessionOptionValue>
   telemetry?: AgentStartedTelemetry
+  /** Ollama variant this startup runs as; its tab carries the mark. */
+  claudeVariant?: ClaudeVariantMark
+}
+
+/** Shared by both tab-creation sites: a variant tab stays in the terminal, the only surface with
+ *  its Ollama env. */
+export function claudeVariantTabProps(
+  startup: Pick<WorktreeStartupPayload, 'claudeVariant'> | undefined
+): { viewMode?: 'terminal'; claudeVariant?: ClaudeVariantMark } {
+  return startup?.claudeVariant
+    ? { viewMode: 'terminal', claudeVariant: startup.claudeVariant }
+    : {}
 }

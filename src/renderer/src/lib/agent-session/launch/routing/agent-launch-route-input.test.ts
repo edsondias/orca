@@ -4,6 +4,7 @@ import { STRUCTURED_AGENT_SESSION_RUNTIME_CAPABILITY } from '../../../../../../s
 import { folderWorkspaceKey } from '../../../../../../shared/workspace/identity/workspace-scope'
 import { buildAgentLaunchRouteInput } from './agent-launch-route-input'
 import type { AgentLaunchRouteStore } from './agent-launch-route-input'
+import { resolveAgentLaunchRoute } from './agent-launch-routing'
 import type * as ConnectionOwnerResolutionModule from '../../../workspace/ownership/connection-owner-resolution'
 
 const mocks = vi.hoisted(() => ({
@@ -75,5 +76,28 @@ describe('a cwd that names the workspace root', () => {
       }).startsOutsideWorkspaceRoot
     expect(at('/srv/notes/')).toBe(false)
     expect(at('/srv/notes/drafts')).toBe(true)
+  })
+})
+
+describe('an Ollama Claude variant', () => {
+  beforeEach(stageLocalStructuredHost)
+
+  const routeFor = (tuiCustomization: { launchesClaudeVariant?: boolean }) =>
+    resolveAgentLaunchRoute(
+      buildAgentLaunchRouteInput(
+        // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the route store is the app state narrowed to the slices the input reads; only those are staged.
+        { settings: STRUCTURED_SETTINGS } as unknown as AgentLaunchRouteStore,
+        {
+          agent: 'claude',
+          preferredSurface: 'chat',
+          workspace: { kind: 'git-worktree', worktreeId: 'wt-1' },
+          tuiCustomization
+        }
+      )
+    )
+
+  it('requires a terminal even when chat is preferred', () => {
+    expect(routeFor({})).toBe('structured-native-chat')
+    expect(routeFor({ launchesClaudeVariant: true })).toBe('terminal-tui')
   })
 })

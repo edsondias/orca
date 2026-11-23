@@ -1,5 +1,6 @@
 import type { AiVaultSessionTitle } from '../ai-vault/contracts/ai-vault-session-title'
 import type { TuiAgent } from '../agent-launch/catalog/tui-agent'
+import type { ClaudeVariantMark } from '../claude-ollama-variants'
 import type { AgentLaunchPaneOutcome } from '../agent-launch/contracts/agent-launch-pane-verdict'
 
 /** The tab row owns the recovery ledger, including the last reason it acted on. */
@@ -55,6 +56,8 @@ export type TerminalTab = {
   sessionTitleFromHost?: true
   /** Stable label from the tab-bar Quick Command that created this terminal. */
   quickCommandLabel?: string | null
+  /** Ollama variant that launched this Claude tab; prefixes the displayed title only. */
+  claudeVariant?: ClaudeVariantMark | null
   customTitle: string | null
   color: string | null
   /** Pinned tabs survive "close others"; host-persisted for remote servers. */

@@ -5,6 +5,7 @@ import {
   terminalLayoutSnapshotSchema
 } from '../workspace-layout/terminal-topology/terminal-layout-snapshot-schema'
 import { closedTerminalPaneSchema } from '../workspace-layout/terminal-surfaces/closed-terminal-panes'
+import { claudeVariantMarkSchema } from '../claude-variant-mark-schema'
 import { closedTerminalTabTombstoneSchema } from '../workspace-layout/terminal-surfaces/closed-terminal-tab-tombstones'
 
 import type { TabGroupLayoutNode } from '../workspace-layout/tab-groups/tab-types'
@@ -59,6 +60,7 @@ export const terminalTabSchema = z.object({
     .optional()
     .catch(undefined),
   quickCommandLabel: z.string().nullable().optional(),
+  claudeVariant: claudeVariantMarkSchema,
   customTitle: z.string().nullable(),
   color: z.string().nullable(),
   isPinned: z.boolean().optional(),
@@ -105,6 +107,7 @@ const tabSchema = z.object({
     .optional()
     .catch(undefined),
   quickCommandLabel: z.string().nullable().optional(),
+  claudeVariant: claudeVariantMarkSchema,
   customLabel: z.string().nullable(),
   color: z.string().nullable(),
   sortOrder: z.number(),

@@ -24,7 +24,8 @@ export function hostPlannableAgentLaunch(
     !request.startupPlan ||
     request.launchDraftPrompt ||
     request.agentLaunchRoute === 'structured-native-chat' ||
-    request.ephemeralVmRecipe
+    request.ephemeralVmRecipe ||
+    request.claudeVariant
   ) {
     return undefined
   }
@@ -101,6 +102,8 @@ export function worktreeCreationAgentLaunchOptions(
     request.agentLaunchRoute === 'structured-native-chat' ||
     request.ephemeralVmCheckoutMode === 'provisioned-root' ||
     request.ephemeralVmRecipe ||
+    // The host would plan plain Claude without the Ollama env.
+    request.claudeVariant ||
     !request.agent ||
     (request.launchInputs === undefined && !request.launchDraftPrompt)
   ) {

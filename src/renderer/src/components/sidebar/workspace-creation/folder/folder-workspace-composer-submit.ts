@@ -8,6 +8,7 @@ import { projectGroupHookTrustKey } from '../../../../../../shared/workspace-set
 import { folderWorkspaceToWorktree } from '../../../../../../shared/folder-workspaces/folder-workspace-worktree'
 import { ensureAgentLaunchPreferences } from '@/runtime/agent-launch-settings/use-host-agent-launch-preferences'
 import { resolveAgentStartupPlanInputs } from '../../../../../../shared/agent-launch/startup/agent-startup-plan-inputs'
+import { withClaudeVariantStartupInputs } from '../../../../../../shared/agent-launch/startup/claude-variant-startup-inputs'
 import { ensureAgentStartupInTerminal } from '@/lib/workspace/creation/new-workspace'
 import { seedNativeChatLaunchDraftForAgentTab } from '@/lib/agent-session/launch/prompt/agent-launch-prompt-delivery'
 import { createNonSecureContextUuid as createBrowserUuid } from '../../../../../../shared/identifiers/non-secure-context-uuid'
@@ -51,6 +52,7 @@ export async function submitFolderWorkspaceCreate({
   linkedTaskSourceContext,
   note,
   quickAgent,
+  claudeVariant = null,
   launchChoice,
   launchInputs,
   legacyLaunchInputs,
@@ -111,22 +113,28 @@ export async function submitFolderWorkspaceCreate({
           agentArgs,
           sessionOptions,
           agentEnv,
+          claudeVariant,
           platform: launchPlatform,
           shell: launchShell,
           isRemote: launchIsRemote
         })
       : quickAgent && launchPlatform
         ? buildAgentStartupPlan({
-            ...resolveAgentStartupPlanInputs({
-              agent: quickAgent,
-              settings: effectiveSettings ?? { agentCmdOverrides },
-              agentArgs: settings ? agentArgs : (agentArgs ?? null),
-              sessionOptions,
-              platform: launchPlatform,
-              shell: launchShell,
-              isRemote: launchIsRemote
-            }),
-            ...(agentEnv ? { agentEnv } : {}),
+            ...withClaudeVariantStartupInputs(
+              {
+                ...resolveAgentStartupPlanInputs({
+                  agent: quickAgent,
+                  settings: effectiveSettings ?? { agentCmdOverrides },
+                  agentArgs: settings ? agentArgs : (agentArgs ?? null),
+                  sessionOptions,
+                  platform: launchPlatform,
+                  shell: launchShell,
+                  isRemote: launchIsRemote
+                }),
+                ...(agentEnv ? { agentEnv } : {})
+              },
+              claudeVariant
+            ),
             prompt: note,
             allowEmptyPromptLaunch: true
           })
@@ -150,15 +158,17 @@ export async function submitFolderWorkspaceCreate({
       }
     : null
   // Creation retains its chosen route, but admission after materialization may fall back.
-  const plan = launchRequest
-    ? launchChoice
-      ? adoptAgentSessionLaunchVerdict({
-          ...launchRequest,
-          route: launchChoice.route,
-          executionHostId: launchChoice.executionHostId
-        })
-      : planAgentSessionLaunch(useAppStore.getState(), launchRequest)
-    : null
+  // Why: a variant's Ollama env exists only in the terminal, so it skips route planning.
+  const plan =
+    launchRequest && !claudeVariant
+      ? launchChoice
+        ? adoptAgentSessionLaunchVerdict({
+            ...launchRequest,
+            route: launchChoice.route,
+            executionHostId: launchChoice.executionHostId
+          })
+        : planAgentSessionLaunch(useAppStore.getState(), launchRequest)
+      : null
   const structuredLaunch = plan?.route === 'structured-native-chat'
   const hostStartsTerminal =
     setupSupported && Boolean(runtimeEnvironmentId) && Boolean(quickAgent) && !structuredLaunch
@@ -226,6 +236,7 @@ export async function submitFolderWorkspaceCreate({
 
   const startup = buildFolderWorkspaceStartupPayload({
     quickAgent,
+    claudeVariant,
     startupPlan,
     launchInputs,
     requestedAgentArgs,

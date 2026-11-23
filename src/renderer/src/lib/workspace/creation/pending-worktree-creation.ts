@@ -9,6 +9,7 @@ import type {
   WorkspaceStatus
 } from '../../../../../shared/worktree/types'
 import type { TuiAgent } from '../../../../../shared/agent-launch/catalog/tui-agent'
+import type { ClaudeVariantMark } from '../../../../../shared/claude-ollama-variants'
 import type { WorkspaceSource as WorkspaceCreateTelemetrySource } from '../../../../../shared/workspace/creation/workspace-source'
 import type {
   CreateSparseCheckoutRequest,
@@ -142,6 +143,8 @@ export type WorktreeCreationRequest = {
   suppressTerminalFocusOnCompletion?: boolean
   /** "None" in the composer: when setup runs, open only its tab instead of an extra shell. */
   setupOnly?: boolean
+  /** Ollama variant the renderer-seeded agent tab runs as. */
+  claudeVariant?: ClaudeVariantMark
 }
 
 export type PendingVmEnvironmentCheck = {

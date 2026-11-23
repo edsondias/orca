@@ -85,6 +85,7 @@ export function projectWorktreeTabModelReconciliation(
             ...(tab.quickCommandLabel?.trim()
               ? { quickCommandLabel: tab.quickCommandLabel.trim() }
               : {}),
+            ...(tab.claudeVariant ? { claudeVariant: tab.claudeVariant } : {}),
             ...(tab.generatedTitle?.trim() ? { generatedLabel: tab.generatedTitle.trim() } : {}),
             ...(tab.aiVaultTitle ? { aiVaultTitle: tab.aiVaultTitle } : {}),
             customLabel: tab.customTitle,

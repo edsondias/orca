@@ -12,7 +12,8 @@
       "updateRequired": "OpenCode cannot safely start with a chosen model on this version. Update OpenCode to a supported release, or omit the model choice.",
       "invalidConfig": "OpenCode could not apply this model choice to the launch configuration. Check the OpenCode launch configuration and try again, or omit the model choice.",
       "unsupportedLaunch": "OpenCode cannot apply this model choice to this launch. Start a fresh local terminal with supported launch arguments, or omit the model choice."
-    }
+    },
+    "claudeVariantUnavailable": "This Ollama model is no longer configured, or this workspace cannot run it."
   },
   "csv": {
     "detectingDelimiter": "Detecting delimiter…",
@@ -3024,7 +3025,8 @@
         "dropPartiallyAttached_one": "{{failureCount}} of {{count}} item could not be attached.",
         "dropPartiallyAttached_other": "{{failureCount}} of {{count}} items could not be attached.",
         "dropPartiallyAttached": "{{failureCount}} of {{count}} items could not be attached.",
-        "folderSetupSupportCheckFailed": "Couldn't confirm whether this host runs folder setup scripts. Try again."
+        "folderSetupSupportCheckFailed": "Couldn't confirm whether this host runs folder setup scripts. Try again.",
+        "claudeVariantLaunchFailed": "The selected Ollama model is no longer configured, so no agent was launched."
       },
       "useGlobalFileDrop": {
         "38c9f034ff": "Failed to upload dropped files.",
@@ -14783,6 +14785,25 @@
           "cancel": "Cancel",
           "confirm": "Remove",
           "unknownHost": "Unknown host"
+        },
+        "ClaudeOllamaVariantsEditor": {
+          "a231f363d5": "Display name",
+          "c8f19ed8f9": "Ollama model",
+          "0af27f2238": "Model, e.g. kimi-k3.1-pro:cloud",
+          "909f304941": "1M context",
+          "eb0c182878": "Cancel",
+          "9525f2fb3c": "Enter a name of up to {{value0}} characters.",
+          "ee74d24363": "Model names can use letters, numbers and . _ : / - only. Use the 1M context option instead of a [1m] suffix.",
+          "1a8abee981": "Ollama models",
+          "99d3745609": "Save",
+          "13e74aa469": "1M",
+          "279c73205a": "Edit {{value0}}",
+          "73472592b7": "Edit",
+          "12b176e09f": "Remove {{value0}}",
+          "80ab74a996": "Remove",
+          "b66e2c5492": "Add",
+          "9c6d332f87": "Add model",
+          "e0e4b16afa": "Limit of {{value0}} models reached."
         }
       },
       "right": {

@@ -30,6 +30,7 @@ import type { PRAutoRefreshSettings } from '../source-control/hosted-review/revi
 import type { ManagedAccountNameSettings } from '../agent-accounts/managed-account-display-names'
 import type { NewTabMenuSettings } from '../new-tab-menu/new-tab-menu-layout'
 import type { UiLanguageSettings } from '../i18n/ui-language-settings'
+import type { ClaudeOllamaVariantSettings } from '../claude-ollama-variants'
 
 /** Settings groups owned by their feature modules and composed into GlobalSettings. */
 export type GlobalSettingsBase = AntigravityChatAuthSettings &
@@ -63,4 +64,5 @@ export type GlobalSettingsBase = AntigravityChatAuthSettings &
   PRAutoRefreshSettings &
   ManagedAccountNameSettings &
   NewTabMenuSettings &
-  UiLanguageSettings
+  UiLanguageSettings &
+  ClaudeOllamaVariantSettings

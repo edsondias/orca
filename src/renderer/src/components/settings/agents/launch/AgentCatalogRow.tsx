@@ -79,6 +79,8 @@ export type AgentCatalogRowProps = {
   /** Update for the user's own CLI, shown while a newer release is out. */
   cliUpdate?: React.ReactNode
   launchChoiceEditor?: (permissionControlRef: React.Ref<HTMLDivElement>) => React.ReactNode
+  /** Agent-specific settings shown below the installed row's launch defaults. */
+  extraSettings?: React.ReactNode
 }
 
 export type AgentCatalogRowViewProps = AgentCatalogRowProps & {
@@ -116,6 +118,7 @@ export function AgentCatalogRow({
   reserveOpensAsSlot = false,
   chatRuntime,
   cliUpdate,
+  extraSettings,
   expanded: cmdOpen,
   onExpandedChange: setCmdOpen
 }: AgentCatalogRowViewProps): React.JSX.Element {
@@ -380,6 +383,7 @@ export function AgentCatalogRow({
                   'Override the binary path or name, and edit the default launch arguments or environment for this agent.'
                 )}
               </p>
+              {extraSettings && <div className="mt-3">{extraSettings}</div>}
             </div>
           )}
         </div>

@@ -124,6 +124,7 @@ export function createTabsCreateActions(
           ...(init?.quickCommandLabel !== undefined
             ? { quickCommandLabel: init.quickCommandLabel }
             : {}),
+          ...(init?.claudeVariant ? { claudeVariant: init.claudeVariant } : {}),
           customLabel: init?.customLabel ?? null,
           color: init?.color ?? null,
           sortOrder: insertedIndex,
@@ -225,6 +226,7 @@ export function createTabsCreateActions(
           ...(init?.quickCommandLabel !== undefined
             ? { quickCommandLabel: init.quickCommandLabel }
             : {}),
+          ...(init?.claudeVariant ? { claudeVariant: init.claudeVariant } : {}),
           customLabel: init?.customLabel ?? null,
           color: init?.color ?? null,
           sortOrder: 0,

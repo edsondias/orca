@@ -48,6 +48,7 @@ export function buildComposerCardProps(state: ComposerModel) {
     folderTargetConnectionId,
     folderTargetIsRemote,
     folderTargetRequiresConnection,
+    folderTargetRuntimeEnvironmentId,
     folderTargetSshStatus,
     forkPushWarning,
     handleAddAttachment,
@@ -115,6 +116,7 @@ export function buildComposerCardProps(state: ComposerModel) {
     setParentWorktreeId,
     setSelectedEphemeralVmRecipeId,
     setSmartNameMode,
+    selectedRepoRuntimeEnvironmentId,
     setTuiAgent,
     shouldApplyLinkedOnlyTemplate,
     workspaceSeedName,
@@ -231,6 +233,9 @@ export function buildComposerCardProps(state: ComposerModel) {
     onSelectLinkedItem: handleSelectLinkedItem,
     tuiAgent,
     onTuiAgentChange: setTuiAgent,
+    agentRuntimeEnvironmentId: isProjectGroupTarget
+      ? folderTargetRuntimeEnvironmentId
+      : selectedRepoRuntimeEnvironmentId,
     detectedAgentIds: isProjectGroupTarget ? folderDetectedAgentIds : detectedAgentIds,
     agentRows: resolveComposerAgentRows(state),
     onOpenAgentSettings: handleOpenAgentSettings,

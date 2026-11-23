@@ -22,6 +22,7 @@ import type { SshConnectionStatus } from '../../../../../shared/remote-runtime/s
 import type { TaskSourceContext } from '../../../../../shared/work-items/task-source-context'
 import type { AddRepoDialogEntryRequest } from '@/components/sidebar/project-admission/dialog/add-repo-dialog-types'
 import type { TuiAgent } from '../../../../../shared/agent-launch/catalog/tui-agent'
+import type { ClaudeOllamaVariant } from '../../../../../shared/claude-ollama-variants'
 import type { ExecutionHostId } from '../../../../../shared/execution-host/execution-host'
 
 import type { EphemeralVmRecipeOption } from '../run-target/run-target-options'
@@ -53,6 +54,11 @@ export type NewWorkspaceComposerCardProps = {
   ) => void
   /** Where the quick agent would start; null keeps the picker's plain agent list. */
   agentRows?: ComposerAgentRows | null
+  /** Ollama variants the agent picker lists with Claude; empty for a paired-host target. */
+  claudeVariants?: readonly ClaudeOllamaVariant[]
+  quickClaudeVariantId?: string | null
+  /** Called after `onQuickAgentChange('claude')`, which clears any earlier variant pick. */
+  onQuickClaudeVariantChange?: (variantId: string) => void
   eligibleRepos: readonly RepoOption[]
   selectedRepo?: RepoOption | null
   repoId: string

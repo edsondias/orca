@@ -42,6 +42,12 @@ import { useNewTabAgentMenuRows } from './use-new-tab-agent-menu-rows'
 import type { NewTabAgentMenuModel } from './new-tab-agent-menu-model'
 import { useAgentDetectionTargetForWorktree } from '@/lib/agent-session/launch/inventory/useAgentDetectionTarget'
 import { chatUnavailableLabel, rowTitle, rowLabel, rowId } from './agent-menu-row-presentation'
+import type { ClaudeVariantMark } from '../../../../../shared/claude-ollama-variants'
+import {
+  ClaudeVariantMenuItems,
+  claudeVariantPickerChoices,
+  useClaudeVariantMenuLaunches
+} from './ClaudeVariantMenuItems'
 
 export type QuickLaunchAgentMenuItemsProps = {
   worktreeId: string
@@ -86,7 +92,13 @@ export function useTabAgentMenuLaunch({
   onFocusChat?: (tabId: string) => void
 }) {
   const runLaunch = useCallback(
-    (row: NewTabAgentMenuRow, draft?: AgentPickerDraft, pickerEntry?: AgentPickerEntry) => {
+    (
+      row: NewTabAgentMenuRow,
+      draft?: AgentPickerDraft,
+      pickerEntry?: AgentPickerEntry,
+      /** An Ollama variant opens in Claude's terminal instead of Anthropic's Claude. */
+      claudeVariant?: ClaudeVariantMark
+    ) => {
       if (
         disabled ||
         row.kind === 'chat-unavailable' ||
@@ -97,7 +109,7 @@ export function useTabAgentMenuLaunch({
       }
       const { agent } = row
       const entry = getCatalogEntry(agent)
-      const label = entry?.label ?? agent
+      const label = claudeVariant?.label ?? entry?.label ?? agent
       const result = launchAgentInNewTabWithOutcome({
         requestId: createNonSecureContextUuid(),
         focusIntent: captureNativeChatComposerFocusIntent(),
@@ -108,6 +120,7 @@ export function useTabAgentMenuLaunch({
             }
           : {}),
         agent,
+        ...(claudeVariant ? { claudeVariantId: claudeVariant.id } : {}),
         ...(draft
           ? agentPickerFreshLaunchInputs(
               draft,
@@ -179,6 +192,8 @@ export function useTabAgentMenuLaunch({
   return runLaunch
 }
 
+export type TabAgentMenuLaunch = ReturnType<typeof useTabAgentMenuLaunch>
+
 function QuickLaunchAgentMenuItemsInner(props: QuickLaunchAgentMenuItemsProps): React.JSX.Element {
   useUiLanguageRevision()
   const detectionTarget = useAgentDetectionTargetForWorktree(props.worktreeId)
@@ -197,7 +212,7 @@ export function ProjectedAgentMenuItems({
 }: {
   disabled?: boolean
   model: NewTabAgentMenuModel
-  runLaunch: React.ComponentProps<typeof SubscribedAgentLaunchPickerMenu>['runLaunch']
+  runLaunch: TabAgentMenuLaunch
   pickerInventory?: AgentPickerInventorySource
   onSelectPickerAgent?: (agent: AgentPickerEntry['agent']) => void
   hidePickerSearch?: boolean
@@ -206,6 +221,7 @@ export function ProjectedAgentMenuItems({
   const desktopDefaultAgent = useAppStateValue((s) => s.settings?.defaultTuiAgent)
   const newAgentShortcut = useOptionalShortcutLabel('tab.newAgent')
   const shortcutLabels = useAgentMenuShortcutLabels(pickerInventory ? model : undefined)
+  const claudeVariantLaunches = useClaudeVariantMenuLaunches(model)
   if (model.state === 'loading') {
     // Why: rows fill in once when every answer is known, instead of reshuffling under the pointer.
     return (
@@ -234,6 +250,11 @@ export function ProjectedAgentMenuItems({
     detection: { detectedIds, detectionFailed, needsServerUpdate }
   } = model
   const defaultAgent = 'defaultTuiAgent' in model ? model.defaultTuiAgent : desktopDefaultAgent
+  // Variants follow Claude's last row; each opens Claude's terminal with its Ollama env.
+  const lastClaudeRowIndex = rows.reduce(
+    (last, row, index) => (row.agent === 'claude' ? index : last),
+    -1
+  )
   return (
     <>
       {(detectedIds === null && (detectionFailed || needsServerUpdate)) || rows.length === 0 ? (
@@ -263,6 +284,7 @@ export function ProjectedAgentMenuItems({
           runLaunch={runLaunch}
           onSelectAgent={onSelectPickerAgent}
           hideSearch={hidePickerSearch}
+          choices={claudeVariantPickerChoices(claudeVariantLaunches, runLaunch)}
         />
       ) : (
         rows.map((row, index) => {
@@ -299,6 +321,14 @@ export function ProjectedAgentMenuItems({
             </>
           )
           const other = otherSurfaceRow(row, detectedIds)
+          const variantItems =
+            index === lastClaudeRowIndex ? (
+              <ClaudeVariantMenuItems
+                launches={claudeVariantLaunches}
+                disabled={disabled}
+                runLaunch={runLaunch}
+              />
+            ) : null
           return (
             <React.Fragment key={rowId(row)}>
               {startsCliGroup ? <DropdownMenuSeparator /> : null}
@@ -328,6 +358,7 @@ export function ProjectedAgentMenuItems({
                   {rowContent}
                 </DropdownMenuItem>
               )}
+              {variantItems}
             </React.Fragment>
           )
         })

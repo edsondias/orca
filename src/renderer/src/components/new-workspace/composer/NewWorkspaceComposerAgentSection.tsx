@@ -1,7 +1,10 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { ChevronDown, Settings2 } from 'lucide-react'
 import type AgentCombobox from '@/components/agent/AgentCombobox'
 import { AgentLaunchPicker } from '@/components/agent/AgentLaunchPicker'
+import type { AgentPickerChoice } from '@/components/agent/agent-picker-search-rows'
+import { AgentVariantIcon } from '@/components/agent/icons/AgentVariantIcon'
+import { claudeVariantPickerMatches } from '@/lib/agent-catalog/agent-picker-search'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/class-names'
@@ -16,6 +19,9 @@ type NewWorkspaceComposerAgentSectionProps = Pick<
   | 'agentSetupDisabled'
   | 'onQuickAgentChange'
   | 'agentRows'
+  | 'claudeVariants'
+  | 'quickClaudeVariantId'
+  | 'onQuickClaudeVariantChange'
   | 'onOpenAgentSettings'
   | 'createDisabled'
   | 'onCreate'
@@ -36,16 +42,43 @@ export function NewWorkspaceComposerAgentSection({
   agentPickerDraft,
   agentSetupDisabled,
   onQuickAgentChange,
+  claudeVariants,
+  quickClaudeVariantId,
+  onQuickClaudeVariantChange,
   onOpenAgentSettings,
   createDisabled,
   onCreate,
   advancedOpen,
   advancedLocked = false,
   onToggleAdvanced,
+  visibleQuickAgents,
   defaultTuiAgent,
   handleSetDefaultAgent
 }: NewWorkspaceComposerAgentSectionProps): React.JSX.Element {
   const t = useTranslate()
+  // Why: a variant is a Claude launch, so it is offered only where Claude itself is.
+  const claudeOffered = visibleQuickAgents.some((agent) => agent.id === 'claude')
+  const claudeVariantChoices = useMemo<AgentPickerChoice[] | undefined>(
+    () =>
+      claudeOffered && onQuickClaudeVariantChange && claudeVariants?.length
+        ? claudeVariants.map((variant) => ({
+            id: `claude-variant:${variant.id}`,
+            label: variant.label,
+            icon: <AgentVariantIcon agent="claude" size={14} />,
+            matches: (query) => claudeVariantPickerMatches(variant, query),
+            onSelect: () => {
+              // Why: a variant launches with Claude's defaults, not a model or surface picked for Claude.
+              onQuickAgentChange('claude')
+              onQuickClaudeVariantChange(variant.id)
+            }
+          }))
+        : undefined,
+    [claudeOffered, claudeVariants, onQuickAgentChange, onQuickClaudeVariantChange]
+  )
+  const selectedClaudeVariant =
+    quickAgent === 'claude' && quickClaudeVariantId
+      ? claudeVariants?.find((variant) => variant.id === quickClaudeVariantId)
+      : undefined
   return (
     <>
       <div className="min-w-0 space-y-1" data-contextual-tour-target="workspace-creation-agent">
@@ -82,6 +115,8 @@ export function NewWorkspaceComposerAgentSection({
           cli={agentSurfaceRows?.selection.cli === true}
           setupDisabled={agentSetupDisabled}
           onTriggerEnter={createDisabled ? undefined : onCreate}
+          triggerLabel={selectedClaudeVariant?.label}
+          choices={claudeVariantChoices}
           emptyLabel={t('auto.components.agent.AgentCombobox.986f946354', 'Blank Terminal')}
           defaultAgent={defaultTuiAgent}
           onSetDefault={handleSetDefaultAgent}

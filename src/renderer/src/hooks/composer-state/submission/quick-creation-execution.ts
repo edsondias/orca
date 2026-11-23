@@ -14,6 +14,10 @@ import { prepareQuickComposerStartup } from './quick-startup-plan'
 import { buildQuickCreationRequest, type QuickSubmitOptions } from './quick-creation-request'
 import type { PendingSmartGitHubSubmitResolution } from '../linked-work-items/source-selection-decisions'
 import { resolveAgentSessionLaunchRoute } from '@/lib/agent-session/launch/routing/agent-session-launch-plan'
+import {
+  reportComposerClaudeVariantLaunch,
+  resolveComposerClaudeVariant
+} from './composer-claude-variant-launch'
 
 export function useQuickCreationExecution(input: QuickCreationExecutionInput) {
   const {
@@ -69,7 +73,7 @@ export function useQuickCreationExecution(input: QuickCreationExecutionInput) {
 
       const {
         submitLinkedWorkItem,
-        agent,
+        agent: requestedLaunchAgent,
         submitLinkedIssueNumber,
         submitLinkedPR,
         workspaceName,
@@ -89,6 +93,14 @@ export function useQuickCreationExecution(input: QuickCreationExecutionInput) {
         pendingFirstAgentMessageRename,
         trimmedNote
       } = prepared
+
+      const activeEphemeralVmRecipeId = ephemeralVmsEnabled ? selectedEphemeralVmRecipeId : null
+      const { agent, claudeVariant } = resolveComposerClaudeVariant({
+        agent: requestedLaunchAgent,
+        claudeVariantId: options?.claudeVariantId,
+        variants: settings?.claudeOllamaVariants,
+        ephemeralVmRecipeActive: Boolean(activeEphemeralVmRecipeId)
+      })
 
       const promptLinkedWorkItem = agent === null ? null : submitLinkedWorkItem
 
@@ -115,8 +127,6 @@ export function useQuickCreationExecution(input: QuickCreationExecutionInput) {
 
       let ephemeralVmRecipe: WorktreeCreationRequest['ephemeralVmRecipe']
 
-      const activeEphemeralVmRecipeId = ephemeralVmsEnabled ? selectedEphemeralVmRecipeId : null
-
       if (activeEphemeralVmRecipeId && selectedWorkspaceTarget.status === 'ready') {
         const selectedRecipe = ephemeralVmRecipes.find(
           (recipe) => recipe.id === activeEphemeralVmRecipeId
@@ -131,25 +141,28 @@ export function useQuickCreationExecution(input: QuickCreationExecutionInput) {
 
       const promptDelivery = quickDraftPrompt ? 'draft' : 'auto-submit'
       // Why: the verdict is persisted on the request as data and re-entered once the worktree exists.
-      const agentLaunchRoute = !agent
-        ? 'terminal-tui'
-        : (options?.launchChoice?.route ??
-          resolveAgentSessionLaunchRoute(useAppStore.getState(), {
-            agent,
-            workspace: {
-              kind: selectedRepoIsGit ? 'git-worktree' : 'folder',
-              repoId,
-              executionHostId: ephemeralVmRecipe
-                ? 'runtime:pending-ephemeral-vm'
-                : (workspaceRunContext?.hostId ?? selectedRepoExecutionHostId ?? undefined)
-            },
-            prompt: quickDraftPrompt ?? quickPrompt,
-            promptDelivery
-          }))
+      // Why: a variant's Ollama env exists only in the terminal.
+      const agentLaunchRoute =
+        !agent || claudeVariant
+          ? 'terminal-tui'
+          : (options?.launchChoice?.route ??
+            resolveAgentSessionLaunchRoute(useAppStore.getState(), {
+              agent,
+              workspace: {
+                kind: selectedRepoIsGit ? 'git-worktree' : 'folder',
+                repoId,
+                executionHostId: ephemeralVmRecipe
+                  ? 'runtime:pending-ephemeral-vm'
+                  : (workspaceRunContext?.hostId ?? selectedRepoExecutionHostId ?? undefined)
+              },
+              prompt: quickDraftPrompt ?? quickPrompt,
+              promptDelivery
+            }))
       const structuredLaunch = agentLaunchRoute === 'structured-native-chat'
 
       const quickStartup = await prepareQuickComposerStartup({
         agent,
+        claudeVariant,
         linkedWorkItem: submitLinkedWorkItem,
         note: trimmedNote,
         repoId,
@@ -230,7 +243,7 @@ export function useQuickCreationExecution(input: QuickCreationExecutionInput) {
               confirmVmRecipe: true
             }
           : hookPreparation,
-        pendingFirstAgentMessageRename,
+        pendingFirstAgentMessageRename: pendingFirstAgentMessageRename && agent !== null,
         note: trimmedNote,
         startupPlan: quickStartup.startupPlan,
         quickPrompt,
@@ -238,12 +251,15 @@ export function useQuickCreationExecution(input: QuickCreationExecutionInput) {
         promptDelivery,
         quickTelemetry: quickStartup.telemetry,
         suppressTerminalFocusOnCompletion: createMultiple,
-        setupOnly: options?.setupOnly === true
+        setupOnly: options?.setupOnly === true,
+        claudeVariant: claudeVariant ? { id: claudeVariant.id, label: claudeVariant.label } : null
       })
 
       if (isSubmissionCancelled()) {
         return
       }
+
+      reportComposerClaudeVariantLaunch(requestedLaunchAgent, agent)
 
       if (persistDraft) {
         clearNewWorkspaceDraft()

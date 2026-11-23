@@ -25,6 +25,8 @@ export type AgentSessionContinuationRequest = {
   initialCwd?: string | null
   launchSource: LaunchSource
   avoidSourceAgent?: boolean
+  /** The source tab's Ollama variant, reused only when the target agent is Claude. */
+  sourceClaudeVariantId?: string | null
 }
 
 function markdownFenceFor(value: string): string {

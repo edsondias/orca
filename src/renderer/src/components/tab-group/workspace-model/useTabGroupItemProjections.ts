@@ -77,6 +77,8 @@ export function useTabGroupItemProjections({
               {
                 ...item,
                 quickCommandLabel: item.quickCommandLabel ?? terminalTab?.quickCommandLabel,
+                claudeVariant: item.claudeVariant ?? terminalTab?.claudeVariant,
+                defaultTitle: terminalTab?.defaultTitle,
                 generatedLabel: item.generatedLabel ?? terminalTab?.generatedTitle
               },
               worktreeState.generatedTabTitlesEnabled,
@@ -84,6 +86,7 @@ export function useTabGroupItemProjections({
             ),
             defaultTitle: terminalTab?.defaultTitle,
             quickCommandLabel: terminalTab?.quickCommandLabel ?? item.quickCommandLabel ?? null,
+            claudeVariant: item.claudeVariant ?? terminalTab?.claudeVariant ?? null,
             generatedTitle: terminalTab?.generatedTitle ?? item.generatedLabel ?? null,
             // Why: the strip re-resolves this title; without the session title the first-prompt title wins.
             aiVaultTitle: item.aiVaultTitle ?? terminalTab?.aiVaultTitle ?? null,

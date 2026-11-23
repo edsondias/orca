@@ -8,6 +8,7 @@ import type {
 import type { AgentStatusState } from '../../agent-status/contracts/agent-status-types'
 import type { AgentMainAgentStatus } from '../../agent-status/lifecycle/main-agent-status'
 import type { TuiAgent } from '../../agent-launch/catalog/tui-agent'
+import type { ClaudeVariantMark } from '../../claude-ollama-variants'
 
 export const RESUMABLE_TUI_AGENTS = [
   'claude',
@@ -80,6 +81,8 @@ export type SleepingAgentSessionRecord = {
   mainAgent?: AgentMainAgentStatus
   connectionId?: string | null
   launchConfig?: SleepingAgentLaunchConfig
+  /** Ollama variant the Claude session was launched with, so wake resumes it on the same model. */
+  claudeVariant?: ClaudeVariantMark | null
   /** Worktree-sleep/legacy records open fresh tabs on activation. quit/live records belong to restored panes; only their cold-restore path consumes them to avoid duplicating warm sessions (#5232). */
   origin?: 'worktree-sleep' | 'quit' | 'live'
   /** Explicit-sleep finished panes resume only when their own tab opens; mobile wake must not mount/respawn every slept tab (#11598). */

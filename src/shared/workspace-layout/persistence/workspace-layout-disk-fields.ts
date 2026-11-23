@@ -110,7 +110,9 @@ const SHARED_TAB_FIELDS = {
   aiVaultTitle: tab('aiVaultTitle'),
   quickCommandLabel: tab('quickCommandLabel'),
   isPinned: tab('isPinned'),
-  viewMode: tab('viewMode')
+  viewMode: tab('viewMode'),
+  // Fork-only Ollama variant mark: persisted by the renderer session, not by the main-owned layout yet.
+  claudeVariant: 'unwritten'
 } as const
 
 const ROW = {
@@ -245,7 +247,9 @@ const SLEEPING = {
   connectionId: resumeRecord('connectionId'),
   launchConfig: resumeRecord('launchConfig'),
   origin: resumeRecord('origin'),
-  restoreOnTabOpenOnly: resumeRecord('restoreOnTabOpenOnly')
+  restoreOnTabOpenOnly: resumeRecord('restoreOnTabOpenOnly'),
+  // Fork-only Ollama variant mark; see SHARED_TAB_FIELDS.
+  claudeVariant: 'unwritten'
 } as const satisfies Record<keyof SleepingAgentSessionRecord, DiskFieldWritten>
 
 const INCARNATION = {

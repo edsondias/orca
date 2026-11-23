@@ -107,9 +107,11 @@ export async function executeWorktreeCreation(
             ? { linkedTaskSourceContext: preparedRequest.linkedTaskSourceContext }
             : {}),
           // Why: the remote host must own task-draft startup so its initial terminal is the agent, not an idle fallback shell.
+          // A variant stays renderer-owned: the host would build that draft startup as plain Claude.
           ...(!structuredLaunch &&
           !backendStartup &&
           preparedRequest.agent &&
+          !preparedRequest.claudeVariant &&
           preparedRequest.launchDraftPrompt
             ? { startupDraft: preparedRequest.launchDraftPrompt }
             : {}),

@@ -58,6 +58,7 @@ import { AgentLaunchDefaultsGroup } from '@/components/settings/agents/launch/Ag
 import { AgentDetectionCatalog } from '@/components/settings/agents/launch/AgentDetectionCatalog'
 import type { AgentCatalogRowProps } from '@/components/settings/agents/launch/AgentCatalogRow'
 import { HostAgentEnvironmentEditor } from '@/components/settings/agents/launch/HostAgentEnvironmentEditor'
+import { claudeOllamaVariantsRowSettings } from '@/components/settings/agents/launch/ClaudeOllamaVariantsEditor'
 import { buildCodexSessionSourceHomeControl } from '@/components/agent/launch-settings/codex-session-source-home-control'
 import { buildAgentOpensAs } from '@/lib/agent-session/launch/native-chat-provider-choice'
 import {
@@ -318,7 +319,8 @@ export function AgentLaunchSettingsCatalog({
     sessionSourceHome:
       local && isDetected && agent.id === 'codex'
         ? buildCodexSessionSourceHomeControl(local.settings, local.updateSettings)
-        : undefined
+        : undefined,
+    extraSettings: claudeOllamaVariantsRowSettings(agent.id, local)
   })
   const rowProps = (
     agent: (typeof catalog)[number],

@@ -2,6 +2,8 @@ import {
   resolveAgentStartupPlanInputs,
   type AgentStartupSettings
 } from '../../../../../../shared/agent-launch/startup/agent-startup-plan-inputs'
+import { withClaudeVariantStartupInputs } from '../../../../../../shared/agent-launch/startup/claude-variant-startup-inputs'
+import type { ClaudeOllamaVariant } from '../../../../../../shared/claude-ollama-variants'
 import type { LinkedWorkItemSummary } from '@/lib/workspace/creation/new-workspace'
 import { resolveRepoExecutionHostPlatform } from '@/runtime/hosts/platform/execution-host-facts'
 import type { ExecutionHostPlatformFact } from '@/runtime/hosts/platform/execution-host-platform-fact'
@@ -54,11 +56,12 @@ export function buildFolderWorkspaceLinkedStartupPlan(args: {
   sessionOptions?: Readonly<Record<string, SessionOptionValue>>
   sessionOptionsOverrideAgentArgs?: boolean
   agentEnv?: Record<string, string>
+  claudeVariant?: ClaudeOllamaVariant | null
   platform: NodeJS.Platform
   shell?: AgentStartupShell
   isRemote: boolean
 }): AgentStartupPlan | null {
-  const inputs = resolveAgentStartupPlanInputs({
+  const resolvedInputs = resolveAgentStartupPlanInputs({
     agent: args.agent,
     settings: args.settings ?? { agentCmdOverrides: args.agentCmdOverrides },
     agentArgs: args.settings ? args.agentArgs : (args.agentArgs ?? null),
@@ -68,8 +71,9 @@ export function buildFolderWorkspaceLinkedStartupPlan(args: {
     isRemote: args.isRemote
   })
   if (args.agentEnv) {
-    inputs.agentEnv = args.agentEnv
+    resolvedInputs.agentEnv = args.agentEnv
   }
+  const inputs = withClaudeVariantStartupInputs(resolvedInputs, args.claudeVariant)
   const linkedDraftPrompt = resolveFolderWorkspaceLaunchDraft(args.linkedWorkItem, args.note)
   const draftLaunchPlan = linkedDraftPrompt
     ? buildAgentDraftLaunchPlan({
