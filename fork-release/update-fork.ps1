@@ -13,7 +13,7 @@ ele conclui o merge pendente e segue dali. Veja fork-release/README.md.
 param(
   # Tag do upstream; o padrão é a versão marcada como "Latest" no GitHub.
   [string]$Tag,
-  [string[]]$Branches = @('main', 'test/android-auto-rebase', 'fix/markdown-root-relative-images'),
+  [string[]]$Branches = @('main', 'test/android-auto-rebase', 'fix/markdown-root-relative-images', 'feat/claude-ollama-variants-1.4.267'),
   [switch]$SkipDesktop,
   [switch]$SkipMobile,
   # Compila mesmo quando nada novo entrou desde o último build.

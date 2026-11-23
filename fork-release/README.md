@@ -7,7 +7,7 @@ A decisão está registrada em `docs/adr/0004-atualizacao-do-fork.md`.
 
 A branch `fork/release` fica na worktree `E:\github\orca-release`, separada das worktrees de desenvolvimento.
 Ela só recebe merges e os commits deste processo, nunca desenvolvimento direto.
-As features continuam nas suas próprias branches: `main` (Excalidraw e "Open in VS Code"), `test/android-auto-rebase` (modo carro) e `fix/markdown-root-relative-images` (imagens com caminho `/...` no preview de Markdown, base para um PR ao upstream).
+As features continuam nas suas próprias branches: `main` (Excalidraw e "Open in VS Code"), `test/android-auto-rebase` (modo carro) e `fix/markdown-root-relative-images` (imagens com caminho `/...` no preview de Markdown, base para um PR ao upstream) e `feat/claude-ollama-variants-1.4.267` (modelos do Ollama como variantes do Claude, portada sobre a base upstream 1.4.267).
 
 ## Como usar
 
