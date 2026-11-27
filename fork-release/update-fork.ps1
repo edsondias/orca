@@ -78,6 +78,9 @@ function Use-Node24 {
 }
 
 function Use-Jdk17 {
+  # Why: a JVM avisa no stderr que leu JDK_JAVA_OPTIONS e o configure do CMake no Gradle trata o aviso como falha;
+  # com TieredStopAtLevel=1 o code cache ainda cai para 48 MB e o build estoura com "Out of space in CodeCache".
+  Remove-Item Env:JDK_JAVA_OPTIONS -ErrorAction SilentlyContinue
   if ($env:JAVA_HOME -and (Split-Path -Leaf $env:JAVA_HOME.TrimEnd('\')) -like 'jdk-17*') { return }
   $jdk = Get-ChildItem 'C:\Program Files\Eclipse Adoptium', 'C:\Program Files\Microsoft' -Directory -Filter 'jdk-17*' -ErrorAction SilentlyContinue |
     Sort-Object Name -Descending | Select-Object -First 1
