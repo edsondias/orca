@@ -1,5 +1,6 @@
 import {
   resolveAgentStartupPlanInputs,
+  type AgentStartupPlanInputs,
   type AgentStartupSettings
 } from '../../../../../../shared/agent-launch/startup/agent-startup-plan-inputs'
 import { withClaudeVariantStartupInputs } from '../../../../../../shared/agent-launch/startup/claude-variant-startup-inputs'
@@ -8,6 +9,7 @@ import type { LinkedWorkItemSummary } from '@/lib/workspace/creation/new-workspa
 import { resolveRepoExecutionHostPlatform } from '@/runtime/hosts/platform/execution-host-facts'
 import type { ExecutionHostPlatformFact } from '@/runtime/hosts/platform/execution-host-platform-fact'
 import type { AppState } from '@/store/types'
+import type { RuntimeStatuses } from '@/store/slices/runtime-status/views/runtime-status-owner'
 import { resolveQuickCreateLinkedWorkItemPrompt } from '@/lib/work-items/linked-work-item-context'
 import {
   buildAgentDraftLaunchPlan,
@@ -21,14 +23,13 @@ import type { AgentStartupShell } from '../../../../../../shared/agent-launch/st
 
 /** OS of the host that owns a folder group; its agents are quoted for that host's shell. */
 export function getFolderWorkspaceAgentLaunchFact(
-  state: Pick<
-    AppState,
-    'sshConnectionStates' | 'sshStateByEnvironment' | 'runtimeStatusByEnvironmentId'
-  >,
+  state: Pick<AppState, 'sshConnectionStates' | 'sshStateByEnvironment'>,
+  statuses: RuntimeStatuses,
   projectGroup: Pick<ProjectGroup, 'connectionId' | 'executionHostId' | 'parentPath'>
 ): ExecutionHostPlatformFact {
   return resolveRepoExecutionHostPlatform(
     state,
+    statuses,
     {
       connectionId: projectGroup.connectionId,
       executionHostId: projectGroup.executionHostId,
@@ -46,10 +47,9 @@ export function resolveFolderWorkspaceLaunchDraft(
   return (draftPrompt ?? prompt.trim()) || null
 }
 
-export function buildFolderWorkspaceLinkedStartupPlan(args: {
+type FolderWorkspaceStartupPlanArgs = {
   agent: TuiAgent
   settings?: AgentStartupSettings
-  linkedWorkItem: LinkedWorkItemSummary
   note: string
   agentCmdOverrides: Record<string, string> | undefined
   agentArgs?: string | null
@@ -60,7 +60,11 @@ export function buildFolderWorkspaceLinkedStartupPlan(args: {
   platform: NodeJS.Platform
   shell?: AgentStartupShell
   isRemote: boolean
-}): AgentStartupPlan | null {
+}
+
+function resolveFolderWorkspaceStartupInputs(
+  args: FolderWorkspaceStartupPlanArgs
+): AgentStartupPlanInputs {
   const resolvedInputs = resolveAgentStartupPlanInputs({
     agent: args.agent,
     settings: args.settings ?? { agentCmdOverrides: args.agentCmdOverrides },
@@ -73,7 +77,24 @@ export function buildFolderWorkspaceLinkedStartupPlan(args: {
   if (args.agentEnv) {
     resolvedInputs.agentEnv = args.agentEnv
   }
-  const inputs = withClaudeVariantStartupInputs(resolvedInputs, args.claudeVariant)
+  return withClaudeVariantStartupInputs(resolvedInputs, args.claudeVariant)
+}
+
+/** A quick agent with no linked work item: the note is its prompt. */
+export function buildFolderWorkspaceNoteStartupPlan(
+  args: FolderWorkspaceStartupPlanArgs
+): AgentStartupPlan | null {
+  return buildAgentStartupPlan({
+    ...resolveFolderWorkspaceStartupInputs(args),
+    prompt: args.note,
+    allowEmptyPromptLaunch: true
+  })
+}
+
+export function buildFolderWorkspaceLinkedStartupPlan(
+  args: FolderWorkspaceStartupPlanArgs & { linkedWorkItem: LinkedWorkItemSummary }
+): AgentStartupPlan | null {
+  const inputs = resolveFolderWorkspaceStartupInputs(args)
   const linkedDraftPrompt = resolveFolderWorkspaceLaunchDraft(args.linkedWorkItem, args.note)
   const draftLaunchPlan = linkedDraftPrompt
     ? buildAgentDraftLaunchPlan({

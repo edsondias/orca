@@ -11,6 +11,7 @@ import { startMobileEndpointLifecycle } from './mobile-endpoint-lifecycle'
 import { watchHostRevocation } from './host-revocation-watch'
 import { createUndialableDirectClient, skipsDirectEndpoint } from './undialable-direct-endpoint'
 import { carSessionStore, isCarSessionActive } from '../../car/car-session-store'
+import { readvertiseOnPageChange } from './mobile-runtime-capability-negotiation'
 
 export function openHostLogicalClient(host: HostProfile, onLog: ConnectionLogSink): RpcClient {
   // Keep app-visible RPC/subscription identity stable while replacing physical sockets.
@@ -18,7 +19,7 @@ export function openHostLogicalClient(host: HostProfile, onLog: ConnectionLogSin
   const logical = createStableLogicalRpcClient(
     Platform.OS !== 'web' && skipsDirectEndpoint(host)
       ? createUndialableDirectClient()
-      : connect(host.endpoint, host.deviceToken, host.publicKeyB64, { onLog }),
+      : connect(host.endpoint, host.deviceToken, host.publicKeyB64, { onLog, hostId: host.id }),
     directPathForEndpoint(host.endpoint)
   )
   if (Platform.OS === 'web') {
@@ -34,6 +35,7 @@ export function openHostLogicalClient(host: HostProfile, onLog: ConnectionLogSin
   const unsubscribeCarSession = carSessionStore.subscribe(applyForeground)
   // A definite revocation (K6): cached screens go at once and stay gone until the desktop accepts this
   // phone again; drafts stay until the host is removed.
+  const stopPageCapabilities = readvertiseOnPageChange(host.id, logical)
   const stopRevocationWipe = watchHostRevocation(logical, (revoked) => {
     const store = processDeviceStore()
     store.fenceHostCache(host.id, revoked)
@@ -45,6 +47,7 @@ export function openHostLogicalClient(host: HostProfile, onLog: ConnectionLogSin
   const closeLogical = logical.close
   logical.close = () => {
     stopRevocationWipe()
+    stopPageCapabilities()
     appStateSubscription.remove()
     unsubscribeCarSession()
     endpointLifecycle.stop()

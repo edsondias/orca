@@ -7,12 +7,9 @@ import { reviewSetupTrustMismatch } from '@/store/slices/worktrees/create/create
 import { projectGroupHookTrustKey } from '../../../../../../shared/workspace-setup/hooks/workspace-hook-owner'
 import { folderWorkspaceToWorktree } from '../../../../../../shared/folder-workspaces/folder-workspace-worktree'
 import { ensureAgentLaunchPreferences } from '@/runtime/agent-launch-settings/use-host-agent-launch-preferences'
-import { resolveAgentStartupPlanInputs } from '../../../../../../shared/agent-launch/startup/agent-startup-plan-inputs'
-import { withClaudeVariantStartupInputs } from '../../../../../../shared/agent-launch/startup/claude-variant-startup-inputs'
 import { ensureAgentStartupInTerminal } from '@/lib/workspace/creation/new-workspace'
 import { seedNativeChatLaunchDraftForAgentTab } from '@/lib/agent-session/launch/prompt/agent-launch-prompt-delivery'
 import { createNonSecureContextUuid as createBrowserUuid } from '../../../../../../shared/identifiers/non-secure-context-uuid'
-import { buildAgentStartupPlan } from '../../../../../../shared/agent-launch/startup/tui-agent-startup'
 import '@/diagnostics/telemetry/telemetry'
 import { activateAndRevealFolderWorkspace } from '@/lib/workspace/activation/worktree-activation'
 import { folderWorkspaceKey } from '../../../../../../shared/workspace/identity/workspace-scope'
@@ -30,9 +27,11 @@ import { beginStructuredAgentSessionProvisionalLaunch } from '@/lib/agent-sessio
 import '@/lib/workspace/creation/new-workspace-project-options'
 import { getRepoExecutionHostId } from '../../../../../../shared/execution-host/execution-host'
 import { useAppStore } from '@/store/index'
+import { readRuntimeStatuses } from '@/store/slices/runtime-status/views/runtime-status-owner'
 import { resolveExecutionHostAgentStartupShell } from '@/runtime/hosts/platform/execution-host-facts'
 import {
   buildFolderWorkspaceLinkedStartupPlan,
+  buildFolderWorkspaceNoteStartupPlan,
   getFolderWorkspaceAgentLaunchFact,
   resolveFolderWorkspaceLaunchDraft
 } from './folder-workspace-agent-startup'
@@ -81,7 +80,11 @@ export async function submitFolderWorkspaceCreate({
     lastAutoName,
     linkedWorkItem
   })
-  const launchHost = getFolderWorkspaceAgentLaunchFact(useAppStore.getState(), projectGroup)
+  const launchHost = getFolderWorkspaceAgentLaunchFact(
+    useAppStore.getState(),
+    readRuntimeStatuses(),
+    projectGroup
+  )
   const launchPlatform = launchHost.kind === 'known' ? launchHost.platform : null
   // SSH folders use the plain orca relay shim; keep the Linux-only local executable rename out of remote launches.
   const launchIsRemote = Boolean(projectGroup.connectionId)
@@ -119,24 +122,18 @@ export async function submitFolderWorkspaceCreate({
           isRemote: launchIsRemote
         })
       : quickAgent && launchPlatform
-        ? buildAgentStartupPlan({
-            ...withClaudeVariantStartupInputs(
-              {
-                ...resolveAgentStartupPlanInputs({
-                  agent: quickAgent,
-                  settings: effectiveSettings ?? { agentCmdOverrides },
-                  agentArgs: settings ? agentArgs : (agentArgs ?? null),
-                  sessionOptions,
-                  platform: launchPlatform,
-                  shell: launchShell,
-                  isRemote: launchIsRemote
-                }),
-                ...(agentEnv ? { agentEnv } : {})
-              },
-              claudeVariant
-            ),
-            prompt: note,
-            allowEmptyPromptLaunch: true
+        ? buildFolderWorkspaceNoteStartupPlan({
+            agent: quickAgent,
+            settings: effectiveSettings,
+            note,
+            agentCmdOverrides,
+            agentArgs,
+            sessionOptions,
+            agentEnv,
+            claudeVariant,
+            platform: launchPlatform,
+            shell: launchShell,
+            isRemote: launchIsRemote
           })
         : null
   // Argv prefill embeds the draft in launchCommand, so draftPrompt alone cannot detect it.

@@ -1,4 +1,7 @@
-import { fileUriToFilesystemPath, filesystemPathToFileUri } from '../../../../../shared/file-links/file-uri-path'
+import {
+  fileUriToFilesystemPath,
+  filesystemPathToFileUri
+} from '../../../../../shared/file-links/file-uri-path'
 
 // Why: wikis (Azure DevOps) and repos (GitHub) resolve `/img.png` against their own root,
 // which Orca can't know, so callers probe the document's folders and remember the hit here.
@@ -47,4 +50,25 @@ export function rememberRootRelativeImagePath(
 
 export function forgetRootRelativeImagePathsForTests(): void {
   rememberedPaths.clear()
+}
+
+/** Load `absolutePath`; when the filesystem root lacks a `/`-rooted src, probe the document's folders. */
+export async function loadWithRootRelativeImageFallback(
+  rawSrc: string,
+  filePath: string,
+  absolutePath: string,
+  load: (path: string) => Promise<string | null>
+): Promise<string | null> {
+  const url = await load(absolutePath)
+  if (url) {
+    return url
+  }
+  for (const candidate of getRootRelativeImagePathCandidates(rawSrc, filePath)) {
+    const candidateUrl = await load(candidate)
+    if (candidateUrl) {
+      rememberRootRelativeImagePath(rawSrc, filePath, candidate)
+      return candidateUrl
+    }
+  }
+  return null
 }

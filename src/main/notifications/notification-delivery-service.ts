@@ -7,7 +7,10 @@ import type {
 } from '../../shared/notifications/notification-settings-types'
 import type { MobileNotificationPromptRef } from '../../shared/mobile-notification-prompt-ref'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
-import { buildNotificationOptions } from '../ipc/notifications/notification-options'
+import {
+  buildNotificationOptions,
+  notificationNeedsSlackReplyCheck
+} from '../ipc/notifications/notification-options'
 import { translateMain } from '../i18n/main-i18n'
 import { reserveNotificationCooldown } from '../../shared/notifications/notification-burst-cooldown'
 import { toHostSessionPaneKey } from '../../shared/workspace-layout/terminal-surface-id'
@@ -47,6 +50,8 @@ export type NotificationDeliveryDependencies = {
   wasRead?: (request: NotificationDispatchRequest) => boolean
   /** Called for each actual desktop banner or mobile alert. */
   recordAnnounced?: (request: NotificationDispatchRequest) => void
+  /** Whether the chat behind a structured notification answers a Slack thread. */
+  repliesInSlack?: (sessionId: string) => boolean
 }
 
 export type NotificationDeliveryService = {
@@ -128,7 +133,21 @@ export function createNotificationDeliveryService(
         request.agentState
       )
 
-      const notificationOptions = buildNotificationOptions(request, translateMain)
+      let notificationOptions: ReturnType<typeof buildNotificationOptions> | undefined
+      const readNotificationOptions = (): ReturnType<typeof buildNotificationOptions> => {
+        if (!notificationOptions) {
+          const sessionId = request.structuredOrigin?.sessionId
+          notificationOptions = buildNotificationOptions(
+            sessionId &&
+              notificationNeedsSlackReplyCheck(request) &&
+              deps.repliesInSlack?.(sessionId)
+              ? { ...request, agentRepliesInSlack: true }
+              : request,
+            translateMain
+          )
+        }
+        return notificationOptions
+      }
 
       // Desktop focus need not silence phones; execution hosts retire their own delivered alerts.
       if (
@@ -155,13 +174,14 @@ export function createNotificationDeliveryService(
               : request.agentState === 'blocked' || request.agentState === 'waiting'
                 ? resolvePromptRefSafely(request)
                 : undefined
+          const options = readNotificationOptions()
           deps.dispatchMobileNotification({
             type: 'notification',
             emittedAt: deps.now(),
             source: request.source,
             ...(!desktopAllowed ? { desktopAllowed: false } : {}),
-            title: notificationOptions.title,
-            body: notificationOptions.body,
+            title: options.title,
+            body: options.body,
             worktreeId: request.worktreeId,
             ...(request.workspaceExecutionHostId !== undefined
               ? { workspaceExecutionHostId: request.workspaceExecutionHostId }
@@ -217,7 +237,7 @@ export function createNotificationDeliveryService(
 
       const reservation = deps.reserveNative?.(request)
       const deliverNative = () =>
-        deliverNativeAndRecord(request, notificationOptions, settings, reservation)
+        deliverNativeAndRecord(request, readNotificationOptions(), settings, reservation)
       try {
         // macOS swallows denied/undecided notifications; allow the renderer fallback instead.
         const result =

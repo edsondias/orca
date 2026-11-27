@@ -248,6 +248,7 @@ const SLEEPING = {
   launchConfig: resumeRecord('launchConfig'),
   origin: resumeRecord('origin'),
   restoreOnTabOpenOnly: resumeRecord('restoreOnTabOpenOnly'),
+  terminalHandle: resumeRecord('terminalHandle'),
   // Fork-only Ollama variant mark; see SHARED_TAB_FIELDS.
   claudeVariant: 'unwritten'
 } as const satisfies Record<keyof SleepingAgentSessionRecord, DiskFieldWritten>
