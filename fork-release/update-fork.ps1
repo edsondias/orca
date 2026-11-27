@@ -86,6 +86,14 @@ function Use-Jdk17 {
   $env:Path = "$($jdk.FullName)\bin;$env:Path"
 }
 
+function Use-VsWhere {
+  if (Get-Command vswhere -ErrorAction SilentlyContinue) { return }
+  # Why: sem o vswhere no PATH o VsDevCmd reporta VSCMD_VER=17.0, que o build nativo do upstream recusa e fica sem cl.exe.
+  $installer = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer'
+  if (-not (Test-Path (Join-Path $installer 'vswhere.exe'))) { throw 'vswhere.exe não encontrado; instale o Visual Studio Build Tools com o workload de C++.' }
+  $env:Path = "$installer;$env:Path"
+}
+
 function Get-ForkVersion([string]$UpstreamTag, [string]$Label) {
   if ($UpstreamTag -notmatch '^v?(\d+)\.(\d+)\.(\d+)$') { throw "Tag fora do formato vX.Y.Z: $UpstreamTag" }
   # Why: patch 900 fica acima de qualquer 1.4.x oficial, então o auto-update não troca este build pelo oficial.
@@ -139,6 +147,7 @@ try {
   if ($current -ne $ReleaseBranch) { throw "A worktree $Root está em '$current'; o script só roda na $ReleaseBranch." }
   Remove-Item Env:CI -ErrorAction SilentlyContinue  # com CI=1 o electron-builder tenta publicar
   Use-Node24
+  if (-not $SkipDesktop) { Use-VsWhere }
   if (-not $SkipMobile) {
     Use-Jdk17
     if (-not $env:ANDROID_HOME -or -not (Test-Path $env:ANDROID_HOME)) { throw 'ANDROID_HOME não está definido.' }
